@@ -1,18 +1,53 @@
+# booking/views.py
+
 from rest_framework import viewsets, mixins, status
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from django.utils import timezone
 from .models import Reservation
 from .serializers import ReservationCreateSerializer, ReservationSerializer
-import requests
 
-CATALOG_BASE_URL = "http://localhost:8001/api/v1"  # Change if Catalog runs elsewhere
+# gRPC imports
+import grpc
+import ticketing_pb2
+import ticketing_pb2_grpc
+
+
+def get_event_via_grpc(event_id: str):
+    """
+    Calls Catalog Service via gRPC to fetch event details.
+    Returns a dict with 'price_cents' and 'available_tickets' on success,
+    or None if the event is not found.
+    """
+    try:
+        with grpc.insecure_channel('localhost:50051') as channel:  # Catalog gRPC port
+            stub = ticketing_pb2_grpc.CatalogServiceStub(channel)
+            request = ticketing_pb2.GetEventRequest(event_id=event_id)
+            response = stub.GetEvent(request, timeout=5.0)
+
+            # If event not found, response.id will be empty string
+            if not response.id:
+                return None
+
+            return {
+                'price_cents': response.price_cents,
+                'available_tickets': response.available_tickets,
+            }
+    except grpc.RpcError as e:
+        if e.code() == grpc.StatusCode.NOT_FOUND:
+            return None
+        # Log other errors (unreachable service, etc.) – in production use logger
+        print(f"gRPC error when contacting Catalog: {e.code()} - {e.details()}")
+        raise  # Will result in 500 error; you can customize handling
+
 
 class ReservationViewSet(viewsets.GenericViewSet,
                          mixins.CreateModelMixin,
                          mixins.RetrieveModelMixin):
     queryset = Reservation.objects.all()
     permission_classes = [IsAuthenticated]
+
+    # Require authentication for all actions
 
     def get_serializer_class(self):
         if self.action == 'create':
@@ -26,24 +61,23 @@ class ReservationViewSet(viewsets.GenericViewSet,
         event_id = serializer.validated_data['event_id']
         quantity = serializer.validated_data['quantity']
 
-        # Call Catalog Service to validate event and get details
-        try:
-            event_response = requests.get(f"{CATALOG_BASE_URL}/events/{event_id}/")
-            if event_response.status_code != 200:
-                return Response({"error": "Event not found"}, status=status.HTTP_404_NOT_FOUND)
-            event = event_response.json()
-        except requests.RequestException:
-            return Response({"error": "Cannot reach Catalog Service"}, status=status.HTTP_503_SERVICE_UNAVAILABLE)
+        # Fetch event details via gRPC
+        event_data = get_event_via_grpc(str(event_id))
+        if event_data is None:
+            return Response({"error": "Event not found"}, status=status.HTTP_404_NOT_FOUND)
 
-        available = event['available_tickets']
-        price_cents = event['price_cents']
+        available = event_data['available_tickets']
+        price_cents = event_data['price_cents']
 
         if available < quantity:
-            return Response({"error": "Not enough tickets available"}, status=status.HTTP_400_BAD_REQUEST)
+            return Response(
+                {"error": "Not enough tickets available"},
+                status=status.HTTP_400_BAD_REQUEST
+            )
 
-        # Temporary hold: just proceed (real hold will come with Inventory Service)
+        # Create the reservation (temporary hold – real hold comes with Inventory Service)
         reservation = Reservation(
-            user_id=request.user_id,  # Attached by auth middleware or custom auth
+            user_id=request.user_id,  # Set by your authentication middleware/class
             event_id=event_id,
             quantity=quantity,
             amount_cents=price_cents * quantity,
@@ -51,7 +85,10 @@ class ReservationViewSet(viewsets.GenericViewSet,
         )
         reservation.save()
 
-        return Response(ReservationSerializer(reservation).data, status=status.HTTP_201_CREATED)
+        return Response(
+            ReservationSerializer(reservation).data,
+            status=status.HTTP_201_CREATED
+        )
 
     def retrieve(self, request, pk=None):
         reservation = self.get_object()
@@ -65,10 +102,13 @@ class ReservationViewSet(viewsets.GenericViewSet,
             return Response({"error": "Not authorized"}, status=status.HTTP_403_FORBIDDEN)
 
         if reservation.status not in ['AWAITING_PAYMENT', 'EXPIRED']:
-            return Response({"error": "Cannot cancel reservation in current status"}, status=status.HTTP_400_BAD_REQUEST)
+            return Response(
+                {"error": "Cannot cancel reservation in current status"},
+                status=status.HTTP_400_BAD_REQUEST
+            )
 
         reservation.status = 'CANCELLED'
         reservation.save()
 
-        # Later: call Inventory.release here
+        # TODO: Later call Inventory Service to release tickets via gRPC
         return Response({"status": "cancelled"})

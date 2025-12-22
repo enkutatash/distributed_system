@@ -65,3 +65,22 @@ class LoginView(APIView):
                 return Response({'error': 'Invalid credentials'}, status=401)
         except User.DoesNotExist:
             return Response({'error': 'Invalid credentials'}, status=401)
+
+
+class ValidateTokenView(APIView):
+    permission_classes = [AllowAny]
+
+    def get(self, request):
+        auth_header = request.headers.get('Authorization')
+        if not auth_header or not auth_header.startswith('Bearer '):
+            return Response({'error': 'Authentication required'}, status=401)
+
+        token = auth_header.split(' ')[1]
+        try:
+            auth_token = AuthToken.objects.select_related('user').get(token=token)
+            # update last used
+            auth_token.last_used_at = timezone.now()
+            auth_token.save(update_fields=['last_used_at'])
+            return Response({'user_id': str(auth_token.user.id)})
+        except AuthToken.DoesNotExist:
+            return Response({'error': 'Invalid token'}, status=401)

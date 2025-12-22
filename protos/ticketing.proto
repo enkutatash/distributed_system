@@ -1,0 +1,47 @@
+syntax = "proto3";
+
+package ticketing;
+
+import "google/protobuf/timestamp.proto";
+
+// Request to get event details
+message GetEventRequest {
+  string event_id = 1;
+}
+
+// Full event response
+message GetEventResponse {
+  string id = 1;
+  string name = 2;
+  google.protobuf.Timestamp start_at = 3;
+  int32 price_cents = 4;
+  int32 total_tickets = 5;
+  int32 tickets_sold = 6;
+  int32 tickets_held = 7;
+  int32 available_tickets = 8;
+  map<string, string> metadata = 9;
+  google.protobuf.Timestamp created_at = 10;
+}
+
+// Future: Inventory operations
+message HoldTicketsRequest {
+  string event_id = 1;
+  int32 quantity = 2;
+  string reservation_id = 3;
+  int32 ttl_seconds = 4;  // hold duration
+}
+
+message HoldTicketsResponse {
+  bool success = 1;
+  string message = 2;
+}
+
+service CatalogService {
+  rpc GetEvent(GetEventRequest) returns (GetEventResponse);
+}
+
+service InventoryService {
+  rpc HoldTickets(HoldTicketsRequest) returns (HoldTicketsResponse);
+  // rpc ReleaseTickets(...)
+  // rpc SellTickets(...)
+}
