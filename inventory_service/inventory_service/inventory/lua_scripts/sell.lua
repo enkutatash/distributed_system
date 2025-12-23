@@ -5,7 +5,7 @@ local hold_key = "hold:" .. ARGV[3]
 local held_quantity = tonumber(redis.call('GET', hold_key) or '0')
 local quantity = tonumber(ARGV[2])
 
-if held_quantity >= quantity then
+if held_quantity >= quantity and quantity > 0 then
     redis.call('DECRBY', held_key, quantity)
     redis.call('INCRBY', sold_key, quantity)
     redis.call('DEL', hold_key)

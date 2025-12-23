@@ -24,4 +24,5 @@ class Event(models.Model):
 
     @property
     def available_tickets(self):
-        return self.total_tickets - self.tickets_sold - self.tickets_held
+        remaining = self.total_tickets - self.tickets_sold - self.tickets_held
+        return remaining if remaining > 0 else 0
