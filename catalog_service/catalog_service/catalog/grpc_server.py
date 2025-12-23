@@ -33,7 +33,7 @@ class CatalogServicer(ticketing_pb2_grpc.CatalogServiceServicer):
 def serve_grpc():
     server = grpc.server(futures.ThreadPoolExecutor(max_workers=10))
     ticketing_pb2_grpc.add_CatalogServiceServicer_to_server(CatalogServicer(), server)
-    server.add_insecure_port('0.0.0.0:50051')
+    server.add_insecure_port('0.0.0.0:60001')
     server.start()
-    print("gRPC server started on port 50051")
+    print("gRPC server started on port 60001")
     server.wait_for_termination()

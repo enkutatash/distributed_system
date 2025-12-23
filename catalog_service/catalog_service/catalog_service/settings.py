@@ -125,3 +125,12 @@ STATIC_URL = 'static/'
 # Allow any origin (use restrictive config in production)
 CORS_ALLOW_ALL_ORIGINS = True
 CORS_ALLOW_CREDENTIALS = True
+
+
+# REST framework settings: use gateway token authentication first
+REST_FRAMEWORK = {
+    'DEFAULT_AUTHENTICATION_CLASSES': (
+        'catalog.authentication.GatewayTokenAuthentication',
+        'rest_framework.authentication.SessionAuthentication',
+    ),
+}

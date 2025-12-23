@@ -55,7 +55,7 @@ class LoginView(APIView):
             if user.check_password(password):
                 # Create new token on login
                 token = secrets.token_urlsafe(64)
-                auth_token = AuthToken.objects.create(user=user, token=token, name="Login Token")
+                AuthToken.objects.create(user=user, token=token, name="Login Token")
                 return Response({
                     'user_id': str(user.id),
                     'username': user.username,
@@ -81,6 +81,6 @@ class ValidateTokenView(APIView):
             # update last used
             auth_token.last_used_at = timezone.now()
             auth_token.save(update_fields=['last_used_at'])
-            return Response({'user_id': str(auth_token.user.id)})
+            return Response({'user_id': str(auth_token.user.id), 'is_staff': auth_token.user.is_staff})
         except AuthToken.DoesNotExist:
             return Response({'error': 'Invalid token'}, status=401)

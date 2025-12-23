@@ -1,4 +1,4 @@
-# booking/views.py
+# booking/views.py (FULL UPDATED FILE)
 
 from rest_framework import viewsets, mixins, status
 from rest_framework.permissions import IsAuthenticated
@@ -7,47 +7,50 @@ from django.utils import timezone
 from .models import Reservation
 from .serializers import ReservationCreateSerializer, ReservationSerializer
 
-# gRPC imports
+# gRPC imports (now for both Catalog and Inventory)
 import grpc
 import ticketing_pb2
 import ticketing_pb2_grpc
 
-
 def get_event_via_grpc(event_id: str):
-    """
-    Calls Catalog Service via gRPC to fetch event details.
-    Returns a dict with 'price_cents' and 'available_tickets' on success,
-    or None if the event is not found.
-    """
+    """Get event details from Catalog (still needed for price)"""
     try:
-        with grpc.insecure_channel('localhost:50051') as channel:  # Catalog gRPC port
+        with grpc.insecure_channel('localhost:60001') as channel:
             stub = ticketing_pb2_grpc.CatalogServiceStub(channel)
             request = ticketing_pb2.GetEventRequest(event_id=event_id)
             response = stub.GetEvent(request, timeout=5.0)
-
-            # If event not found, response.id will be empty string
             if not response.id:
                 return None
-
             return {
                 'price_cents': response.price_cents,
-                'available_tickets': response.available_tickets,
             }
     except grpc.RpcError as e:
         if e.code() == grpc.StatusCode.NOT_FOUND:
             return None
-        # Log other errors (unreachable service, etc.) – in production use logger
-        print(f"gRPC error when contacting Catalog: {e.code()} - {e.details()}")
-        raise  # Will result in 500 error; you can customize handling
+        raise
 
+def hold_tickets_via_inventory(event_id: str, reservation_id: str, quantity: int):
+    """Atomic hold via Inventory Service"""
+    try:
+        with grpc.insecure_channel('localhost:50052') as channel:  # Inventory gRPC port
+            stub = ticketing_pb2_grpc.InventoryServiceStub(channel)
+            request = ticketing_pb2.HoldTicketsRequest(
+                event_id=event_id,
+                quantity=quantity,
+                reservation_id=reservation_id,
+                ttl_seconds=600  # 10 minutes
+            )
+            response = stub.HoldTickets(request, timeout=5.0)
+            return response.success
+    except grpc.RpcError as e:
+        print(f"Inventory gRPC error: {e.code()} - {e.details()}")
+        return False
 
 class ReservationViewSet(viewsets.GenericViewSet,
                          mixins.CreateModelMixin,
                          mixins.RetrieveModelMixin):
     queryset = Reservation.objects.all()
-    permission_classes = [IsAuthenticated]
-
-    # Require authentication for all actions
+    permission_classes = [IsAuthenticated]  # Your custom permission
 
     def get_serializer_class(self):
         if self.action == 'create':
@@ -60,30 +63,35 @@ class ReservationViewSet(viewsets.GenericViewSet,
 
         event_id = serializer.validated_data['event_id']
         quantity = serializer.validated_data['quantity']
+        user_id = request.headers.get('X-User-ID') or request.user_id  # From Gateway
 
-        # Fetch event details via gRPC
+        if not user_id:
+            return Response({"error": "User ID required"}, status=401)
+
+        # 1. Get price from Catalog (still needed)
         event_data = get_event_via_grpc(str(event_id))
         if event_data is None:
             return Response({"error": "Event not found"}, status=status.HTTP_404_NOT_FOUND)
 
-        available = event_data['available_tickets']
         price_cents = event_data['price_cents']
 
-        if available < quantity:
-            return Response(
-                {"error": "Not enough tickets available"},
-                status=status.HTTP_400_BAD_REQUEST
-            )
-
-        # Create the reservation (temporary hold – real hold comes with Inventory Service)
+        # 2. Atomic hold via Inventory (NEW!)
         reservation = Reservation(
-            user_id=request.user_id,  # Set by your authentication middleware/class
+            user_id=user_id,
             event_id=event_id,
             quantity=quantity,
             amount_cents=price_cents * quantity,
             status='AWAITING_PAYMENT',
         )
-        reservation.save()
+        reservation.save()  # Save first to get ID
+
+        hold_success = hold_tickets_via_inventory(str(event_id), str(reservation.id), quantity)
+        if not hold_success:
+            reservation.delete()  # Rollback if hold fails
+            return Response(
+                {"error": "Not enough tickets available"},
+                status=status.HTTP_400_BAD_REQUEST
+            )
 
         return Response(
             ReservationSerializer(reservation).data,
@@ -92,23 +100,40 @@ class ReservationViewSet(viewsets.GenericViewSet,
 
     def retrieve(self, request, pk=None):
         reservation = self.get_object()
-        if str(reservation.user_id) != request.user_id:
+        user_id = request.headers.get('X-User-ID') or request.user_id
+        if str(reservation.user_id) != user_id:
             return Response({"error": "Not authorized"}, status=status.HTTP_403_FORBIDDEN)
         return Response(ReservationSerializer(reservation).data)
 
     def cancel(self, request, pk=None):
         reservation = self.get_object()
-        if str(reservation.user_id) != request.user_id:
+        user_id = request.headers.get('X-User-ID') or request.user_id
+        if str(reservation.user_id) != user_id:
             return Response({"error": "Not authorized"}, status=status.HTTP_403_FORBIDDEN)
 
         if reservation.status not in ['AWAITING_PAYMENT', 'EXPIRED']:
-            return Response(
-                {"error": "Cannot cancel reservation in current status"},
-                status=status.HTTP_400_BAD_REQUEST
+            return Response({"error": "Cannot cancel reservation in current status"}, status=status.HTTP_400_BAD_REQUEST)
+
+        # NEW: Release tickets via Inventory
+        release_success = release_tickets_via_inventory(str(reservation.event_id), str(reservation.id), reservation.quantity)
+        if release_success:
+            reservation.status = 'CANCELLED'
+            reservation.save()
+            return Response({"status": "cancelled"})
+
+        return Response({"error": "Failed to release tickets"}, status=500)
+
+def release_tickets_via_inventory(event_id: str, reservation_id: str, quantity: int):
+    """Release held tickets"""
+    try:
+        with grpc.insecure_channel('localhost:50052') as channel:
+            stub = ticketing_pb2_grpc.InventoryServiceStub(channel)
+            request = ticketing_pb2.ReleaseTicketsRequest(
+                event_id=event_id,
+                quantity=quantity,
+                reservation_id=reservation_id
             )
-
-        reservation.status = 'CANCELLED'
-        reservation.save()
-
-        # TODO: Later call Inventory Service to release tickets via gRPC
-        return Response({"status": "cancelled"})
+            response = stub.ReleaseTickets(request, timeout=5.0)
+            return response.success
+    except grpc.RpcError:
+        return False

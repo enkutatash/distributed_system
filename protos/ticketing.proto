@@ -23,12 +23,12 @@ message GetEventResponse {
   google.protobuf.Timestamp created_at = 10;
 }
 
-// Future: Inventory operations
+// Add these messages
 message HoldTicketsRequest {
   string event_id = 1;
   int32 quantity = 2;
   string reservation_id = 3;
-  int32 ttl_seconds = 4;  // hold duration
+  int32 ttl_seconds = 4;  // e.g., 600 for 10 minutes
 }
 
 message HoldTicketsResponse {
@@ -36,12 +36,38 @@ message HoldTicketsResponse {
   string message = 2;
 }
 
+message ReleaseTicketsRequest {
+  string event_id = 1;
+  int32 quantity = 2;
+  string reservation_id = 3;
+}
+
+message ReleaseTicketsResponse {
+  bool success = 1;
+  string message = 2;
+}
+
+message SellTicketsRequest {
+  string event_id = 1;
+  int32 quantity = 2;
+  string reservation_id = 3;
+}
+
+message SellTicketsResponse {
+  bool success = 1;
+  string message = 2;
+}
+
+// Add the service
+service InventoryService {
+  rpc HoldTickets(HoldTicketsRequest) returns (HoldTicketsResponse);
+  rpc ReleaseTickets(ReleaseTicketsRequest) returns (ReleaseTicketsResponse);
+  rpc SellTickets(SellTicketsRequest) returns (SellTicketsResponse);
+}
+
+
 service CatalogService {
   rpc GetEvent(GetEventRequest) returns (GetEventResponse);
 }
 
-service InventoryService {
-  rpc HoldTickets(HoldTicketsRequest) returns (HoldTicketsResponse);
-  // rpc ReleaseTickets(...)
-  // rpc SellTickets(...)
-}
+

@@ -1,97 +1,135 @@
 # gateway/views.py
 
 import httpx
+import json
 from django.utils import timezone
-from urllib.parse import urlparse
+from urllib.parse import urljoin
 from rest_framework.views import APIView
 from rest_framework.response import Response
+from rest_framework import status
 from django.http import HttpResponse
-from authentication.models import AuthToken  # Import your AuthToken model
+from authentication.models import AuthToken
+
 
 class ProxyView(APIView):
-    internal_url = ""  # To be overridden by subclasses
-    require_auth = True  # Default: require token (override for public)
+    """
+    Generic proxy view that forwards requests to internal services.
+    Handles authentication, user forwarding, and proper response rendering.
+    """
+    internal_url = ""        # e.g., "http://localhost:8001/api/v1"
+    require_auth = True      # Set to False for fully public services
 
     def dispatch(self, request, *args, **kwargs):
+        # Mirror DRF's dispatch to ensure headers and renderers are set
+        request = self.initialize_request(request, *args, **kwargs)
+        self.request = request
+        self.headers = self.default_response_headers
+        try:
+            self.initial(request, *args, **kwargs)
+            response = self.proxy_request(request)
+        except Exception as exc:  # noqa: BLE001
+            response = self.handle_exception(exc)
+        return self.finalize_response(request, response, *args, **kwargs)
+
+    def proxy_request(self, request):
+        # Prepare auth variables
+        token = None
+        auth_token = None
         user_id = None
+        is_staff = False
 
-        # Authentication check (only if require_auth is True)
-        if self.require_auth:
-            auth_header = request.headers.get('Authorization')
-            if not auth_header or not auth_header.startswith('Bearer '):
-                return Response({"error": "Authentication required"}, status=401)
-
-            token = auth_header.split(' ')[1]
+        # === 1. Extract Authorization token if present (don't require it yet) ===
+        auth_header = request.headers.get('Authorization')
+        if auth_header and auth_header.startswith('Bearer '):
+            token = auth_header.split(' ', 1)[1]
             try:
                 auth_token = AuthToken.objects.select_related('user').get(token=token)
                 user_id = str(auth_token.user.id)
+                is_staff = auth_token.user.is_staff  # For admin checks
                 auth_token.last_used_at = timezone.now()
                 auth_token.save(update_fields=['last_used_at'])
             except AuthToken.DoesNotExist:
-                return Response({"error": "Invalid or expired token"}, status=401)
+                # leave auth_token as None — we'll enforce below if required
+                auth_token = None
 
-        # Build internal URL
-        path = request.path
-        # Remove only the leading '/api' prefix so '/api/events/' -> '/events/'
-        if path.startswith('/api'):
-            target_path = path[len('/api'):]
-        else:
-            target_path = path
-
-        # Avoid duplicating API version segments. If internal_url contains
-        # a version (e.g. '/api/v1') and target_path starts with that same
-        # version ('/v1/...'), strip the leading version from target_path.
-        internal_path = urlparse(self.internal_url).path
-        version_prefix = internal_path.replace('/api', '') if internal_path.startswith('/api') else ''
-        if version_prefix and target_path.startswith(version_prefix):
-            target_path = target_path[len(version_prefix):]
-
-        if not target_path.startswith('/'):
-            target_path = '/' + target_path
-
-        qs = ('?' + request.META['QUERY_STRING']) if request.META.get('QUERY_STRING') else ''
-        url = self.internal_url.rstrip('/') + target_path + qs
-
-        # Prepare headers (remove host and content-length; forward others including Content-Type)
-        headers = {
-            k: v for k, v in request.headers.items()
-            if k.lower() not in ['host', 'content-length']
-        }
-        # Add authenticated user ID for internal services
-        if user_id:
-            headers['X-User-ID'] = user_id
-
-        # Forward the request
-        try:
-            with httpx.Client() as client:
-                response = client.request(
-                    method=request.method,
-                    url=url,
-                    headers=headers,
-                    content=request.body,
-                    timeout=10.0
+        # If this proxy requires authentication, enforce presence of a valid token
+        # Avoid crashing when no token is provided by safely stringifying it
+        print(f"token is here {token}")
+        if self.require_auth:
+            if not token or not auth_token:
+                return Response(
+                    {"error": "Authentication credentials were not provided."},
+                    status=status.HTTP_401_UNAUTHORIZED
                 )
-            # Return a plain HttpResponse for proxied content so DRF's
-            # renderer pipeline is not required (avoids .accepted_renderer error).
-            proxied = HttpResponse(
-                response.content,
-                status=response.status_code,
-                content_type=response.headers.get('Content-Type', 'application/octet-stream')
+
+        # === 2. Admin-only check for event creation ===
+        # Block non-admin users from creating events
+        if request.path.startswith('/api/v1/events/') and request.method == 'POST':
+            if not is_staff:
+                return Response(
+                    {"error": "Admin access required to create."},
+                    status=status.HTTP_403_FORBIDDEN
+                )
+
+        # === 3. Build internal URL cleanly ===
+        # Use urljoin to safely combine base + request path
+        # This avoids duplicate /api/v1 or wrong slashes
+        full_path = request.get_full_path()  # includes query string, e.g. /api/v1/events/?page=2
+        internal_url = urljoin(self.internal_url + '/', full_path.lstrip('/api/v1'))
+        # Result: http://localhost:8001/api/v1/events/?page=2
+
+        # === 4. Prepare headers for internal service ===
+        # Forward most incoming headers to the internal service.
+        # Keep the Authorization header so internal services that require
+        # authentication (e.g. creating events) receive the token.
+
+        forward_headers = {
+            key: value
+            for key, value in request.headers.items()
+            if key.lower() not in ['host', 'content-length']
+        }
+        if user_id:
+            forward_headers['X-User-ID'] = user_id
+
+        # === 5. Forward the request ===
+        try:
+            with httpx.Client(timeout=10.0) as client:
+                print(f"[gateway] forwarding: method={request.method} url={internal_url}")
+                resp = client.request(
+                    method=request.method,
+                    url=internal_url,
+                    headers=forward_headers,
+                    content=request.body,
+                    params=request.GET,  # already in full_path, but safe
+                )
+                print(f"[gateway] proxied response: status={resp.status_code} content_type={resp.headers.get('Content-Type')}")
+
+            # === 6. Return correct response type ===
+            content_type = resp.headers.get('Content-Type', '')
+
+            # Always return a raw HttpResponse for proxied content to avoid
+            # DRF renderer lifecycle issues (Response.accepted_renderer not set).
+            proxy_response = HttpResponse(
+                content=resp.content,
+                status=resp.status_code,
+                content_type=content_type or 'application/octet-stream'
             )
-            # Add the proxied URL as a debug header to help diagnose routing issues.
-            proxied['X-Proxy-URL'] = url
-            return proxied
-        except httpx.RequestError as e:
-            return Response({"error": "Internal service unavailable"}, status=503)
+            # Optional debug header to see actual internal route used
+            proxy_response['X-Proxied-URL'] = internal_url
+            return proxy_response
+
+        except httpx.RequestError as exc:
+            body = json.dumps({"error": "Unable to reach internal service", "detail": str(exc)})
+            return HttpResponse(body, status=status.HTTP_503_SERVICE_UNAVAILABLE, content_type='application/json')
 
 
-# Protected: Booking Service
-class BookingProxy(ProxyView):
-    internal_url = "http://localhost:8002/api/v1"
-    require_auth = True  # Requires valid Bearer token
-
-
-# Public: Catalog Service (no auth needed)
+# Public Catalog Service (read-only public, create protected by admin check above)
 class CatalogProxy(ProxyView):
+    internal_url = "http://localhost:8002/api/v1"
+    require_auth = False  # Read access is public
+
+
+# Protected Booking Service
+class BookingProxy(ProxyView):
     internal_url = "http://localhost:8001/api/v1"
-    require_auth = False  # Public access
+    require_auth = True
