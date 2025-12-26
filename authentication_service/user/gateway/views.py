@@ -71,6 +71,14 @@ class ProxyView(APIView):
                     status=status.HTTP_403_FORBIDDEN
                 )
 
+        # === 2b. Admin-only check for reservation detail reads ===
+        if request.method == 'GET' and request.path.startswith('/api/v1/reservations/'):
+            if not is_staff:
+                return Response(
+                    {"error": "Admin access required."},
+                    status=status.HTTP_403_FORBIDDEN
+                )
+
         # === 3. Build internal URL cleanly ===
         # Use urljoin to safely combine base + request path
         # This avoids duplicate /api/v1 or wrong slashes
@@ -90,6 +98,7 @@ class ProxyView(APIView):
         }
         if user_id:
             forward_headers['X-User-ID'] = user_id
+        forward_headers['X-Is-Staff'] = 'true' if is_staff else 'false'
 
         # === 5. Forward the request ===
         try:

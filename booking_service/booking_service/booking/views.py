@@ -48,7 +48,8 @@ def hold_tickets_via_inventory(event_id: str, reservation_id: str, quantity: int
 
 class ReservationViewSet(viewsets.GenericViewSet,
                          mixins.CreateModelMixin,
-                         mixins.RetrieveModelMixin):
+                         mixins.RetrieveModelMixin,
+                         mixins.ListModelMixin):
     queryset = Reservation.objects.all()
     permission_classes = [IsAuthenticated]  # Your custom permission
 
@@ -100,10 +101,32 @@ class ReservationViewSet(viewsets.GenericViewSet,
 
     def retrieve(self, request, pk=None):
         reservation = self.get_object()
-        user_id = request.headers.get('X-User-ID') or request.user_id
-        if str(reservation.user_id) != user_id:
-            return Response({"error": "Not authorized"}, status=status.HTTP_403_FORBIDDEN)
+        is_staff = request.headers.get('X-Is-Staff', 'false').lower() == 'true'
+
+        if not is_staff:
+            return Response({"error": "Admin access required"}, status=status.HTTP_403_FORBIDDEN)
+
         return Response(ReservationSerializer(reservation).data)
+
+    def list(self, request):
+        is_staff = request.headers.get('X-Is-Staff', 'false').lower() == 'true'
+        if not is_staff:
+            return Response({"error": "Admin access required"}, status=status.HTTP_403_FORBIDDEN)
+
+        qs = self.get_queryset().order_by('-created_at')
+
+        event_id = request.query_params.get('event_id')
+        if event_id:
+            try:
+                # Ensure valid UUID string; DB field is UUIDField
+                import uuid
+                evt = uuid.UUID(str(event_id))
+                qs = qs.filter(event_id=evt)
+            except ValueError:
+                return Response({"error": "Invalid event_id"}, status=status.HTTP_400_BAD_REQUEST)
+
+        serializer = ReservationSerializer(qs, many=True)
+        return Response(serializer.data)
 
     def cancel(self, request, pk=None):
         reservation = self.get_object()
