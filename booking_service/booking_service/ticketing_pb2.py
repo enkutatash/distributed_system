@@ -25,7 +25,7 @@ _sym_db = _symbol_database.Default()
 from google.protobuf import timestamp_pb2 as google_dot_protobuf_dot_timestamp__pb2
 
 
-DESCRIPTOR = _descriptor_pool.Default().AddSerializedFile(b'\n\x0fticketing.proto\x12\tticketing\x1a\x1fgoogle/protobuf/timestamp.proto\"#\n\x0fGetEventRequest\x12\x10\n\x08\x65vent_id\x18\x01 \x01(\t\"\xeb\x02\n\x10GetEventResponse\x12\n\n\x02id\x18\x01 \x01(\t\x12\x0c\n\x04name\x18\x02 \x01(\t\x12,\n\x08start_at\x18\x03 \x01(\x0b\x32\x1a.google.protobuf.Timestamp\x12\x13\n\x0bprice_cents\x18\x04 \x01(\x05\x12\x15\n\rtotal_tickets\x18\x05 \x01(\x05\x12\x14\n\x0ctickets_sold\x18\x06 \x01(\x05\x12\x14\n\x0ctickets_held\x18\x07 \x01(\x05\x12\x19\n\x11\x61vailable_tickets\x18\x08 \x01(\x05\x12;\n\x08metadata\x18\t \x03(\x0b\x32).ticketing.GetEventResponse.MetadataEntry\x12.\n\ncreated_at\x18\n \x01(\x0b\x32\x1a.google.protobuf.Timestamp\x1a/\n\rMetadataEntry\x12\x0b\n\x03key\x18\x01 \x01(\t\x12\r\n\x05value\x18\x02 \x01(\t:\x02\x38\x01\"e\n\x12HoldTicketsRequest\x12\x10\n\x08\x65vent_id\x18\x01 \x01(\t\x12\x10\n\x08quantity\x18\x02 \x01(\x05\x12\x16\n\x0ereservation_id\x18\x03 \x01(\t\x12\x13\n\x0bttl_seconds\x18\x04 \x01(\x05\"7\n\x13HoldTicketsResponse\x12\x0f\n\x07success\x18\x01 \x01(\x08\x12\x0f\n\x07message\x18\x02 \x01(\t2U\n\x0e\x43\x61talogService\x12\x43\n\x08GetEvent\x12\x1a.ticketing.GetEventRequest\x1a\x1b.ticketing.GetEventResponse2`\n\x10InventoryService\x12L\n\x0bHoldTickets\x12\x1d.ticketing.HoldTicketsRequest\x1a\x1e.ticketing.HoldTicketsResponseb\x06proto3')
+DESCRIPTOR = _descriptor_pool.Default().AddSerializedFile(b'\n\x0fticketing.proto\x12\tticketing\x1a\x1fgoogle/protobuf/timestamp.proto\"#\n\x0fGetEventRequest\x12\x10\n\x08\x65vent_id\x18\x01 \x01(\t\"\xeb\x02\n\x10GetEventResponse\x12\n\n\x02id\x18\x01 \x01(\t\x12\x0c\n\x04name\x18\x02 \x01(\t\x12,\n\x08start_at\x18\x03 \x01(\x0b\x32\x1a.google.protobuf.Timestamp\x12\x13\n\x0bprice_cents\x18\x04 \x01(\x05\x12\x15\n\rtotal_tickets\x18\x05 \x01(\x05\x12\x14\n\x0ctickets_sold\x18\x06 \x01(\x05\x12\x14\n\x0ctickets_held\x18\x07 \x01(\x05\x12\x19\n\x11\x61vailable_tickets\x18\x08 \x01(\x05\x12;\n\x08metadata\x18\t \x03(\x0b\x32).ticketing.GetEventResponse.MetadataEntry\x12.\n\ncreated_at\x18\n \x01(\x0b\x32\x1a.google.protobuf.Timestamp\x1a/\n\rMetadataEntry\x12\x0b\n\x03key\x18\x01 \x01(\t\x12\r\n\x05value\x18\x02 \x01(\t:\x02\x38\x01\"e\n\x12HoldTicketsRequest\x12\x10\n\x08\x65vent_id\x18\x01 \x01(\t\x12\x10\n\x08quantity\x18\x02 \x01(\x05\x12\x16\n\x0ereservation_id\x18\x03 \x01(\t\x12\x13\n\x0bttl_seconds\x18\x04 \x01(\x05\"7\n\x13HoldTicketsResponse\x12\x0f\n\x07success\x18\x01 \x01(\x08\x12\x0f\n\x07message\x18\x02 \x01(\t\"S\n\x15ReleaseTicketsRequest\x12\x10\n\x08\x65vent_id\x18\x01 \x01(\t\x12\x10\n\x08quantity\x18\x02 \x01(\x05\x12\x16\n\x0ereservation_id\x18\x03 \x01(\t\":\n\x16ReleaseTicketsResponse\x12\x0f\n\x07success\x18\x01 \x01(\x08\x12\x0f\n\x07message\x18\x02 \x01(\t\"P\n\x12SellTicketsRequest\x12\x10\n\x08\x65vent_id\x18\x01 \x01(\t\x12\x10\n\x08quantity\x18\x02 \x01(\x05\x12\x16\n\x0ereservation_id\x18\x03 \x01(\t\"7\n\x13SellTicketsResponse\x12\x0f\n\x07success\x18\x01 \x01(\x08\x12\x0f\n\x07message\x18\x02 \x01(\t2\x85\x02\n\x10InventoryService\x12L\n\x0bHoldTickets\x12\x1d.ticketing.HoldTicketsRequest\x1a\x1e.ticketing.HoldTicketsResponse\x12U\n\x0eReleaseTickets\x12 .ticketing.ReleaseTicketsRequest\x1a!.ticketing.ReleaseTicketsResponse\x12L\n\x0bSellTickets\x12\x1d.ticketing.SellTicketsRequest\x1a\x1e.ticketing.SellTicketsResponse2U\n\x0e\x43\x61talogService\x12\x43\n\x08GetEvent\x12\x1a.ticketing.GetEventRequest\x1a\x1b.ticketing.GetEventResponseb\x06proto3')
 
 _globals = globals()
 _builder.BuildMessageAndEnumDescriptors(DESCRIPTOR, _globals)
@@ -44,8 +44,16 @@ if not _descriptor._USE_C_DESCRIPTORS:
   _globals['_HOLDTICKETSREQUEST']._serialized_end=567
   _globals['_HOLDTICKETSRESPONSE']._serialized_start=569
   _globals['_HOLDTICKETSRESPONSE']._serialized_end=624
-  _globals['_CATALOGSERVICE']._serialized_start=626
-  _globals['_CATALOGSERVICE']._serialized_end=711
-  _globals['_INVENTORYSERVICE']._serialized_start=713
-  _globals['_INVENTORYSERVICE']._serialized_end=809
+  _globals['_RELEASETICKETSREQUEST']._serialized_start=626
+  _globals['_RELEASETICKETSREQUEST']._serialized_end=709
+  _globals['_RELEASETICKETSRESPONSE']._serialized_start=711
+  _globals['_RELEASETICKETSRESPONSE']._serialized_end=769
+  _globals['_SELLTICKETSREQUEST']._serialized_start=771
+  _globals['_SELLTICKETSREQUEST']._serialized_end=851
+  _globals['_SELLTICKETSRESPONSE']._serialized_start=853
+  _globals['_SELLTICKETSRESPONSE']._serialized_end=908
+  _globals['_INVENTORYSERVICE']._serialized_start=911
+  _globals['_INVENTORYSERVICE']._serialized_end=1172
+  _globals['_CATALOGSERVICE']._serialized_start=1174
+  _globals['_CATALOGSERVICE']._serialized_end=1259
 # @@protoc_insertion_point(module_scope)

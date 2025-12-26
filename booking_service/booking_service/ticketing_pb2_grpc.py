@@ -25,6 +25,167 @@ if _version_not_supported:
     )
 
 
+class InventoryServiceStub(object):
+    """Add the service
+    """
+
+    def __init__(self, channel):
+        """Constructor.
+
+        Args:
+            channel: A grpc.Channel.
+        """
+        self.HoldTickets = channel.unary_unary(
+                '/ticketing.InventoryService/HoldTickets',
+                request_serializer=ticketing__pb2.HoldTicketsRequest.SerializeToString,
+                response_deserializer=ticketing__pb2.HoldTicketsResponse.FromString,
+                _registered_method=True)
+        self.ReleaseTickets = channel.unary_unary(
+                '/ticketing.InventoryService/ReleaseTickets',
+                request_serializer=ticketing__pb2.ReleaseTicketsRequest.SerializeToString,
+                response_deserializer=ticketing__pb2.ReleaseTicketsResponse.FromString,
+                _registered_method=True)
+        self.SellTickets = channel.unary_unary(
+                '/ticketing.InventoryService/SellTickets',
+                request_serializer=ticketing__pb2.SellTicketsRequest.SerializeToString,
+                response_deserializer=ticketing__pb2.SellTicketsResponse.FromString,
+                _registered_method=True)
+
+
+class InventoryServiceServicer(object):
+    """Add the service
+    """
+
+    def HoldTickets(self, request, context):
+        """Missing associated documentation comment in .proto file."""
+        context.set_code(grpc.StatusCode.UNIMPLEMENTED)
+        context.set_details('Method not implemented!')
+        raise NotImplementedError('Method not implemented!')
+
+    def ReleaseTickets(self, request, context):
+        """Missing associated documentation comment in .proto file."""
+        context.set_code(grpc.StatusCode.UNIMPLEMENTED)
+        context.set_details('Method not implemented!')
+        raise NotImplementedError('Method not implemented!')
+
+    def SellTickets(self, request, context):
+        """Missing associated documentation comment in .proto file."""
+        context.set_code(grpc.StatusCode.UNIMPLEMENTED)
+        context.set_details('Method not implemented!')
+        raise NotImplementedError('Method not implemented!')
+
+
+def add_InventoryServiceServicer_to_server(servicer, server):
+    rpc_method_handlers = {
+            'HoldTickets': grpc.unary_unary_rpc_method_handler(
+                    servicer.HoldTickets,
+                    request_deserializer=ticketing__pb2.HoldTicketsRequest.FromString,
+                    response_serializer=ticketing__pb2.HoldTicketsResponse.SerializeToString,
+            ),
+            'ReleaseTickets': grpc.unary_unary_rpc_method_handler(
+                    servicer.ReleaseTickets,
+                    request_deserializer=ticketing__pb2.ReleaseTicketsRequest.FromString,
+                    response_serializer=ticketing__pb2.ReleaseTicketsResponse.SerializeToString,
+            ),
+            'SellTickets': grpc.unary_unary_rpc_method_handler(
+                    servicer.SellTickets,
+                    request_deserializer=ticketing__pb2.SellTicketsRequest.FromString,
+                    response_serializer=ticketing__pb2.SellTicketsResponse.SerializeToString,
+            ),
+    }
+    generic_handler = grpc.method_handlers_generic_handler(
+            'ticketing.InventoryService', rpc_method_handlers)
+    server.add_generic_rpc_handlers((generic_handler,))
+    server.add_registered_method_handlers('ticketing.InventoryService', rpc_method_handlers)
+
+
+ # This class is part of an EXPERIMENTAL API.
+class InventoryService(object):
+    """Add the service
+    """
+
+    @staticmethod
+    def HoldTickets(request,
+            target,
+            options=(),
+            channel_credentials=None,
+            call_credentials=None,
+            insecure=False,
+            compression=None,
+            wait_for_ready=None,
+            timeout=None,
+            metadata=None):
+        return grpc.experimental.unary_unary(
+            request,
+            target,
+            '/ticketing.InventoryService/HoldTickets',
+            ticketing__pb2.HoldTicketsRequest.SerializeToString,
+            ticketing__pb2.HoldTicketsResponse.FromString,
+            options,
+            channel_credentials,
+            insecure,
+            call_credentials,
+            compression,
+            wait_for_ready,
+            timeout,
+            metadata,
+            _registered_method=True)
+
+    @staticmethod
+    def ReleaseTickets(request,
+            target,
+            options=(),
+            channel_credentials=None,
+            call_credentials=None,
+            insecure=False,
+            compression=None,
+            wait_for_ready=None,
+            timeout=None,
+            metadata=None):
+        return grpc.experimental.unary_unary(
+            request,
+            target,
+            '/ticketing.InventoryService/ReleaseTickets',
+            ticketing__pb2.ReleaseTicketsRequest.SerializeToString,
+            ticketing__pb2.ReleaseTicketsResponse.FromString,
+            options,
+            channel_credentials,
+            insecure,
+            call_credentials,
+            compression,
+            wait_for_ready,
+            timeout,
+            metadata,
+            _registered_method=True)
+
+    @staticmethod
+    def SellTickets(request,
+            target,
+            options=(),
+            channel_credentials=None,
+            call_credentials=None,
+            insecure=False,
+            compression=None,
+            wait_for_ready=None,
+            timeout=None,
+            metadata=None):
+        return grpc.experimental.unary_unary(
+            request,
+            target,
+            '/ticketing.InventoryService/SellTickets',
+            ticketing__pb2.SellTicketsRequest.SerializeToString,
+            ticketing__pb2.SellTicketsResponse.FromString,
+            options,
+            channel_credentials,
+            insecure,
+            call_credentials,
+            compression,
+            wait_for_ready,
+            timeout,
+            metadata,
+            _registered_method=True)
+
+
 class CatalogServiceStub(object):
     """Missing associated documentation comment in .proto file."""
 
@@ -86,80 +247,6 @@ class CatalogService(object):
             '/ticketing.CatalogService/GetEvent',
             ticketing__pb2.GetEventRequest.SerializeToString,
             ticketing__pb2.GetEventResponse.FromString,
-            options,
-            channel_credentials,
-            insecure,
-            call_credentials,
-            compression,
-            wait_for_ready,
-            timeout,
-            metadata,
-            _registered_method=True)
-
-
-class InventoryServiceStub(object):
-    """Missing associated documentation comment in .proto file."""
-
-    def __init__(self, channel):
-        """Constructor.
-
-        Args:
-            channel: A grpc.Channel.
-        """
-        self.HoldTickets = channel.unary_unary(
-                '/ticketing.InventoryService/HoldTickets',
-                request_serializer=ticketing__pb2.HoldTicketsRequest.SerializeToString,
-                response_deserializer=ticketing__pb2.HoldTicketsResponse.FromString,
-                _registered_method=True)
-
-
-class InventoryServiceServicer(object):
-    """Missing associated documentation comment in .proto file."""
-
-    def HoldTickets(self, request, context):
-        """rpc ReleaseTickets(...)
-        rpc SellTickets(...)
-        """
-        context.set_code(grpc.StatusCode.UNIMPLEMENTED)
-        context.set_details('Method not implemented!')
-        raise NotImplementedError('Method not implemented!')
-
-
-def add_InventoryServiceServicer_to_server(servicer, server):
-    rpc_method_handlers = {
-            'HoldTickets': grpc.unary_unary_rpc_method_handler(
-                    servicer.HoldTickets,
-                    request_deserializer=ticketing__pb2.HoldTicketsRequest.FromString,
-                    response_serializer=ticketing__pb2.HoldTicketsResponse.SerializeToString,
-            ),
-    }
-    generic_handler = grpc.method_handlers_generic_handler(
-            'ticketing.InventoryService', rpc_method_handlers)
-    server.add_generic_rpc_handlers((generic_handler,))
-    server.add_registered_method_handlers('ticketing.InventoryService', rpc_method_handlers)
-
-
- # This class is part of an EXPERIMENTAL API.
-class InventoryService(object):
-    """Missing associated documentation comment in .proto file."""
-
-    @staticmethod
-    def HoldTickets(request,
-            target,
-            options=(),
-            channel_credentials=None,
-            call_credentials=None,
-            insecure=False,
-            compression=None,
-            wait_for_ready=None,
-            timeout=None,
-            metadata=None):
-        return grpc.experimental.unary_unary(
-            request,
-            target,
-            '/ticketing.InventoryService/HoldTickets',
-            ticketing__pb2.HoldTicketsRequest.SerializeToString,
-            ticketing__pb2.HoldTicketsResponse.FromString,
             options,
             channel_credentials,
             insecure,
