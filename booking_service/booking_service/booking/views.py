@@ -1,6 +1,7 @@
 # booking/views.py (FULL UPDATED FILE)
 
 from rest_framework import viewsets, mixins, status
+from rest_framework.decorators import action
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from django.utils import timezone
@@ -144,6 +145,26 @@ class ReservationViewSet(viewsets.GenericViewSet,
 
         serializer = ReservationSerializer(qs, many=True)
         return Response(serializer.data)
+
+    @action(detail=False, methods=['get'], url_path='by-user')
+    def by_user(self, request):
+        """List reservations for a given user. Admin can query any user_id; non-admin only their own."""
+        is_staff = request.headers.get('X-Is-Staff', 'false').lower() == 'true'
+        requester_user_id = request.headers.get('X-User-ID') or request.user_id
+
+        if not requester_user_id:
+            return Response({"error": "User ID required"}, status=status.HTTP_401_UNAUTHORIZED)
+
+        target_user_id = request.query_params.get('user_id') if is_staff else requester_user_id
+
+        try:
+            import uuid
+            target_uuid = uuid.UUID(str(target_user_id))
+        except (ValueError, TypeError):
+            return Response({"error": "Invalid user_id"}, status=status.HTTP_400_BAD_REQUEST)
+
+        qs = self.get_queryset().filter(user_id=target_uuid).order_by('-created_at')
+        return Response(ReservationSerializer(qs, many=True).data)
 
     def cancel(self, request, pk=None):
         reservation = self.get_object()

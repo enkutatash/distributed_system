@@ -71,13 +71,15 @@ class ProxyView(APIView):
                     status=status.HTTP_403_FORBIDDEN
                 )
 
-        # === 2b. Admin-only check for reservation detail reads ===
+        # === 2b. Admin-only check for reservation GETs, except by-user ===
         if request.method == 'GET' and request.path.startswith('/api/v1/reservations/'):
-            if not is_staff:
-                return Response(
-                    {"error": "Admin access required."},
-                    status=status.HTTP_403_FORBIDDEN
-                )
+            # Allow non-admins to access their own reservations via by-user endpoint
+            if not request.path.startswith('/api/v1/reservations/by-user'):
+                if not is_staff:
+                    return Response(
+                        {"error": "Admin access required."},
+                        status=status.HTTP_403_FORBIDDEN
+                    )
 
         # === 3. Build internal URL cleanly ===
         # Use urljoin to safely combine base + request path
