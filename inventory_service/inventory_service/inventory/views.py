@@ -3,9 +3,10 @@ from rest_framework.response import Response
 from rest_framework.permissions import AllowAny
 from .models import Event
 from .serializers import EventProvisionSerializer
+from .lua_scripts import r
 
 
-class EventProvisionViewSet(viewsets.GenericViewSet, mixins.CreateModelMixin):
+class EventProvisionViewSet(viewsets.GenericViewSet, mixins.CreateModelMixin, mixins.DestroyModelMixin):
 	queryset = Event.objects.all()
 	serializer_class = EventProvisionSerializer
 	permission_classes = [AllowAny]
@@ -25,3 +26,21 @@ class EventProvisionViewSet(viewsets.GenericViewSet, mixins.CreateModelMixin):
 			"total_tickets": event.total_tickets,
 			"created": created,
 		}, status=status.HTTP_201_CREATED if created else status.HTTP_200_OK)
+
+	def destroy(self, request, pk=None):
+		try:
+			event = Event.objects.get(pk=pk)
+		except Event.DoesNotExist:
+			return Response({"error": "Not found"}, status=status.HTTP_404_NOT_FOUND)
+
+		event.delete()
+
+		# Clean up Redis counters to avoid stale state
+		h_keys = [
+			f"event:{pk}:held",
+			f"event:{pk}:sold",
+			f"event:{pk}:available",
+		]
+		r.delete(*h_keys)
+
+		return Response(status=status.HTTP_204_NO_CONTENT)
