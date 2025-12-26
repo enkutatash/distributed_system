@@ -8,4 +8,5 @@ router.register(r'reservations', ReservationViewSet, basename='reservation')
 urlpatterns = [
     path('api/v1/', include(router.urls)),
     path('api/v1/reservations/<uuid:pk>/cancel/', ReservationViewSet.as_view({'post': 'cancel'}), name='reservation-cancel'),
+    path('api/v1/reservations/<uuid:pk>/confirm/', ReservationViewSet.as_view({'post': 'confirm'}), name='reservation-confirm'),
 ]

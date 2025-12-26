@@ -46,6 +46,23 @@ def hold_tickets_via_inventory(event_id: str, reservation_id: str, quantity: int
         print(f"Inventory gRPC error: {e.code()} - {e.details()}")
         return False
 
+
+def sell_tickets_via_inventory(event_id: str, reservation_id: str, quantity: int):
+    """Finalize tickets in Inventory Service."""
+    try:
+        with grpc.insecure_channel('localhost:50052') as channel:
+            stub = ticketing_pb2_grpc.InventoryServiceStub(channel)
+            request = ticketing_pb2.SellTicketsRequest(
+                event_id=event_id,
+                quantity=quantity,
+                reservation_id=reservation_id,
+            )
+            response = stub.SellTickets(request, timeout=5.0)
+            return response.success
+    except grpc.RpcError as e:
+        print(f"Inventory gRPC error (sell): {e.code()} - {e.details()}")
+        return False
+
 class ReservationViewSet(viewsets.GenericViewSet,
                          mixins.CreateModelMixin,
                          mixins.RetrieveModelMixin,
@@ -145,6 +162,29 @@ class ReservationViewSet(viewsets.GenericViewSet,
             return Response({"status": "cancelled"})
 
         return Response({"error": "Failed to release tickets"}, status=500)
+
+    def confirm(self, request, pk=None):
+        """Internal: mark reservation confirmed after successful payment."""
+        reservation = self.get_object()
+
+        if reservation.status != 'AWAITING_PAYMENT':
+            return Response({"error": "Reservation not awaiting payment"}, status=status.HTTP_400_BAD_REQUEST)
+
+        payment_intent_id = request.data.get('payment_intent_id')
+        if payment_intent_id:
+            reservation.payment_intent_id = payment_intent_id
+
+        sell_success = sell_tickets_via_inventory(
+            str(reservation.event_id), str(reservation.id), reservation.quantity
+        )
+
+        if not sell_success:
+            return Response({"error": "Failed to confirm tickets"}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+        reservation.status = 'CONFIRMED'
+        reservation.save(update_fields=['payment_intent_id', 'status'])
+
+        return Response(ReservationSerializer(reservation).data, status=status.HTTP_200_OK)
 
 def release_tickets_via_inventory(event_id: str, reservation_id: str, quantity: int):
     """Release held tickets"""
