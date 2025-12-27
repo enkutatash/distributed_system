@@ -17,7 +17,7 @@ Including another URLconf
 from django.contrib import admin
 from django.urls import path
 from authentication.views import RegisterView, LoginView, ValidateTokenView
-from gateway.views import BookingProxy, CatalogProxy
+from gateway.views import BookingProxy, CatalogProxy, PaymentProxy
 
 urlpatterns = [
     path('admin/', admin.site.urls),
@@ -31,6 +31,10 @@ urlpatterns = [
     # Booking
     path('api/v1/reservations/', BookingProxy.as_view()),
     path('api/v1/reservations/<path:path>', BookingProxy.as_view()),
+
+    # Payments
+    path('api/v1/payments/', PaymentProxy.as_view()),
+    path('api/v1/payments/<path:path>', PaymentProxy.as_view()),
     
 ]
 

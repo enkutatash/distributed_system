@@ -1,8 +1,9 @@
 # booking/views.py (FULL UPDATED FILE)
 
+import logging
 from rest_framework import viewsets, mixins, status
 from rest_framework.decorators import action
-from rest_framework.permissions import IsAuthenticated
+from rest_framework.permissions import IsAuthenticated, AllowAny
 from rest_framework.response import Response
 from django.utils import timezone
 from .models import Reservation
@@ -29,6 +30,9 @@ def get_event_via_grpc(event_id: str):
         if e.code() == grpc.StatusCode.NOT_FOUND:
             return None
         raise
+
+
+logger = logging.getLogger(__name__)
 
 def hold_tickets_via_inventory(event_id: str, reservation_id: str, quantity: int):
     """Atomic hold via Inventory Service"""
@@ -70,6 +74,17 @@ class ReservationViewSet(viewsets.GenericViewSet,
                          mixins.ListModelMixin):
     queryset = Reservation.objects.all()
     permission_classes = [IsAuthenticated]  # Your custom permission
+
+    def get_authenticators(self):
+        # Skip auth for internal callbacks (confirm/payment_info)
+        if getattr(self, 'action', None) in ['confirm', 'payment_info']:
+            return []
+        return super().get_authenticators()
+
+    def get_permissions(self):
+        if getattr(self, 'action', None) in ['confirm', 'payment_info']:
+            return [AllowAny()]
+        return super().get_permissions()
 
     def get_serializer_class(self):
         if self.action == 'create':
@@ -200,12 +215,28 @@ class ReservationViewSet(viewsets.GenericViewSet,
         )
 
         if not sell_success:
-            return Response({"error": "Failed to confirm tickets"}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+            logger.warning(
+                "Inventory sell failed during confirm",
+                extra={"event_id": str(reservation.event_id), "reservation_id": str(reservation.id), "qty": reservation.quantity},
+            )
+            return Response({"error": "Failed to confirm tickets via inventory"}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
         reservation.status = 'CONFIRMED'
         reservation.save(update_fields=['payment_intent_id', 'status'])
 
         return Response(ReservationSerializer(reservation).data, status=status.HTTP_200_OK)
+
+    @action(detail=True, methods=['get'], url_path='payment-info', authentication_classes=[], permission_classes=[])
+    def payment_info(self, request, pk=None):
+        """Internal endpoint for Payment service to fetch amount and metadata without user auth."""
+        reservation = self.get_object()
+        return Response({
+            "reservation_id": str(reservation.id),
+            "amount_cents": reservation.amount_cents,
+            "status": reservation.status,
+            "event_id": str(reservation.event_id),
+            "quantity": reservation.quantity,
+        })
 
 def release_tickets_via_inventory(event_id: str, reservation_id: str, quantity: int):
     """Release held tickets"""

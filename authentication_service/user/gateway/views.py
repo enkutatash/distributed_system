@@ -9,6 +9,7 @@ from rest_framework.response import Response
 from rest_framework import status
 from django.http import HttpResponse
 from authentication.models import AuthToken
+from rest_framework.permissions import AllowAny
 
 
 class ProxyView(APIView):
@@ -18,6 +19,8 @@ class ProxyView(APIView):
     """
     internal_url = ""        # e.g., "http://localhost:8001/api/v1"
     require_auth = True      # Set to False for fully public services
+    authentication_classes = []
+    permission_classes = [AllowAny]
 
     def dispatch(self, request, *args, **kwargs):
         # Mirror DRF's dispatch to ensure headers and renderers are set
@@ -82,11 +85,15 @@ class ProxyView(APIView):
                     )
 
         # === 3. Build internal URL cleanly ===
-        # Use urljoin to safely combine base + request path
-        # This avoids duplicate /api/v1 or wrong slashes
+        # Use safe prefix stripping (not str.lstrip, which removes any matching chars)
         full_path = request.get_full_path()  # includes query string, e.g. /api/v1/events/?page=2
-        internal_url = urljoin(self.internal_url + '/', full_path.lstrip('/api/v1'))
-        # Result: http://localhost:8001/api/v1/events/?page=2
+        prefix = '/api/v1'
+        if full_path.startswith(prefix):
+            suffix = full_path[len(prefix):].lstrip('/')
+        else:
+            suffix = full_path.lstrip('/')
+        internal_url = urljoin(self.internal_url.rstrip('/') + '/', suffix)
+        # Result: http://localhost:XXXX/api/v1/<suffix>
 
         # === 4. Prepare headers for internal service ===
         # Forward most incoming headers to the internal service.
@@ -144,3 +151,10 @@ class CatalogProxy(ProxyView):
 class BookingProxy(ProxyView):
     internal_url = "http://localhost:8001/api/v1"
     require_auth = True
+
+
+# Payment Service (internal webhook + public create as needed)
+class PaymentProxy(ProxyView):
+    internal_url = "http://localhost:8004/api/v1"
+    # PaymentCreate can be public; webhook is from Stripe and doesn't use Bearer
+    require_auth = False
