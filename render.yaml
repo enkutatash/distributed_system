@@ -1,0 +1,192 @@
+services:
+  - type: web
+    name: gateway
+    env: docker
+    repo: https://github.com/enkutatash/distributed_system
+    branch: main
+    dockerfilePath: authentication_service/user/Dockerfile
+    plan: free
+    healthCheckPath: /health
+    envVars:
+      - key: DB_HOST
+        fromDatabase:
+          name: ticketing-postgres
+          property: host
+      - key: DB_PORT
+        fromDatabase:
+          name: ticketing-postgres
+          property: port
+      - key: DB_NAME
+        fromDatabase:
+          name: ticketing-postgres
+          property: database
+      - key: DB_USER
+        fromDatabase:
+          name: ticketing-postgres
+          property: user
+      - key: DB_PASSWORD
+        fromDatabase:
+          name: ticketing-postgres
+          property: password
+      - key: STRIPE_SECRET_KEY
+        sync: false  # add manually in Render dashboard for security
+      - key: STRIPE_PUBLISHABLE_KEY
+        sync: false
+      - key: STRIPE_WEBHOOK_SECRET
+        sync: false
+
+  - type: web
+    name: catalog
+    env: docker
+    repo: https://github.com/enkutatash/distributed_system
+    branch: main
+    dockerfilePath: catalog_service/catalog_service/Dockerfile
+    plan: free
+    envVars:
+      - key: DB_HOST
+        fromDatabase:
+          name: ticketing-postgres
+          property: host
+      - key: DB_PORT
+        fromDatabase:
+          name: ticketing-postgres
+          property: port
+      - key: DB_NAME
+        fromDatabase:
+          name: ticketing-postgres
+          property: database
+      - key: DB_USER
+        fromDatabase:
+          name: ticketing-postgres
+          property: user
+      - key: DB_PASSWORD
+        fromDatabase:
+          name: ticketing-postgres
+          property: password
+      - key: REDIS_HOST
+        fromService:
+          name: ticketing-redis
+          property: host
+      - key: REDIS_PORT
+        fromService:
+          name: ticketing-redis
+          property: port
+
+  - type: web
+    name: booking
+    env: docker
+    repo: https://github.com/enkutatash/distributed_system
+    branch: main
+    dockerfilePath: booking_service/booking_service/Dockerfile
+    plan: free
+    envVars:
+      - key: DB_HOST
+        fromDatabase:
+          name: ticketing-postgres
+          property: host
+      - key: DB_PORT
+        fromDatabase:
+          name: ticketing-postgres
+          property: port
+      - key: DB_NAME
+        fromDatabase:
+          name: ticketing-postgres
+          property: database
+      - key: DB_USER
+        fromDatabase:
+          name: ticketing-postgres
+          property: user
+      - key: DB_PASSWORD
+        fromDatabase:
+          name: ticketing-postgres
+          property: password
+      - key: REDIS_HOST
+        fromService:
+          name: ticketing-redis
+          property: host
+      - key: REDIS_PORT
+        fromService:
+          name: ticketing-redis
+          property: port
+
+  - type: web
+    name: inventory
+    env: docker
+    repo: https://github.com/enkutatash/distributed_system
+    branch: main
+    dockerfilePath: inventory_service/inventory_service/Dockerfile
+    plan: free
+    envVars:
+      - key: DB_HOST
+        fromDatabase:
+          name: ticketing-postgres
+          property: host
+      - key: DB_PORT
+        fromDatabase:
+          name: ticketing-postgres
+          property: port
+      - key: DB_NAME
+        fromDatabase:
+          name: ticketing-postgres
+          property: database
+      - key: DB_USER
+        fromDatabase:
+          name: ticketing-postgres
+          property: user
+      - key: DB_PASSWORD
+        fromDatabase:
+          name: ticketing-postgres
+          property: password
+      - key: REDIS_HOST
+        fromService:
+          name: ticketing-redis
+          property: host
+      - key: REDIS_PORT
+        fromService:
+          name: ticketing-redis
+          property: port
+
+  - type: web
+    name: payment
+    env: docker
+    repo: https://github.com/enkutatash/distributed_system
+    branch: main
+    dockerfilePath: payment_service/payment_service/Dockerfile
+    plan: free
+    envVars:
+      - key: DB_HOST
+        fromDatabase:
+          name: ticketing-postgres
+          property: host
+      - key: DB_PORT
+        fromDatabase:
+          name: ticketing-postgres
+          property: port
+      - key: DB_NAME
+        fromDatabase:
+          name: ticketing-postgres
+          property: database
+      - key: DB_USER
+        fromDatabase:
+          name: ticketing-postgres
+          property: user
+      - key: DB_PASSWORD
+        fromDatabase:
+          name: ticketing-postgres
+          property: password
+      - key: STRIPE_SECRET_KEY
+        sync: false  # add manually in Render dashboard
+      - key: STRIPE_PUBLISHABLE_KEY
+        sync: false
+      - key: STRIPE_WEBHOOK_SECRET
+        sync: false
+
+databases:
+  - name: ticketing-postgres
+    plan: free
+    databaseName: ticketing_db
+    user: postgres
+
+redis:
+  - name: ticketing-redis
+    plan: free
