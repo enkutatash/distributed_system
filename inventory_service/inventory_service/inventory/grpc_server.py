@@ -95,7 +95,9 @@ class InventoryServicer(ticketing_pb2_grpc.InventoryServiceServicer):
 def serve():
     server = grpc.server(futures.ThreadPoolExecutor(max_workers=10))
     ticketing_pb2_grpc.add_InventoryServiceServicer_to_server(InventoryServicer(), server)
-    server.add_insecure_port('[::]:50052')
+    bound_port = server.add_insecure_port('0.0.0.0:50052')
+    if bound_port == 0:
+        raise RuntimeError("Inventory gRPC failed to bind to port 50052. Is another process using it?")
     server.start()
-    print("Inventory gRPC server running on port 50052")
+    print(f"Inventory gRPC server running on port {bound_port}")
     server.wait_for_termination()

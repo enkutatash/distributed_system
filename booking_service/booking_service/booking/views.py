@@ -63,6 +63,16 @@ def sell_tickets_via_inventory(event_id: str, reservation_id: str, quantity: int
                 reservation_id=reservation_id,
             )
             response = stub.SellTickets(request, timeout=5.0)
+            if not response.success:
+                logger.warning(
+                    "Inventory SellTickets returned false",
+                    extra={
+                        "event_id": event_id,
+                        "reservation_id": reservation_id,
+                        "quantity": quantity,
+                        "inv_message": getattr(response, 'message', ''),
+                    },
+                )
             return response.success
     except grpc.RpcError as e:
         print(f"Inventory gRPC error (sell): {e.code()} - {e.details()}")
@@ -203,6 +213,17 @@ class ReservationViewSet(viewsets.GenericViewSet,
         """Internal: mark reservation confirmed after successful payment."""
         reservation = self.get_object()
 
+        logger.info(
+            "Confirm called",
+            extra={
+                "reservation_id": str(reservation.id),
+                "event_id": str(reservation.event_id),
+                "status": reservation.status,
+                "quantity": reservation.quantity,
+                "payment_intent_id": request.data.get('payment_intent_id'),
+            },
+        )
+
         if reservation.status != 'AWAITING_PAYMENT':
             return Response({"error": "Reservation not awaiting payment"}, status=status.HTTP_400_BAD_REQUEST)
 
@@ -223,6 +244,17 @@ class ReservationViewSet(viewsets.GenericViewSet,
 
         reservation.status = 'CONFIRMED'
         reservation.save(update_fields=['payment_intent_id', 'status'])
+
+        logger.info(
+            "Confirm succeeded",
+            extra={
+                "reservation_id": str(reservation.id),
+                "event_id": str(reservation.event_id),
+                "status": reservation.status,
+                "quantity": reservation.quantity,
+                "payment_intent_id": reservation.payment_intent_id,
+            },
+        )
 
         return Response(ReservationSerializer(reservation).data, status=status.HTTP_200_OK)
 
