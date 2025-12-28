@@ -143,18 +143,21 @@ class ProxyView(APIView):
 
 # Public Catalog Service (read-only public, create protected by admin check above)
 class CatalogProxy(ProxyView):
-    internal_url = "http://localhost:8002/api/v1"
+    # Use container service name inside Docker
+    internal_url = "http://catalog:8002/api/v1"
     require_auth = False  # Read access is public
 
 
 # Protected Booking Service
 class BookingProxy(ProxyView):
-    internal_url = "http://localhost:8001/api/v1"
+    # Use container service name inside Docker
+    internal_url = "http://booking:8001/api/v1"
     require_auth = True
 
 
 # Payment Service (internal webhook + public create as needed)
 class PaymentProxy(ProxyView):
-    internal_url = "http://localhost:8004/api/v1"
+    # Use container service name inside Docker
+    internal_url = "http://payment:8004/api/v1"
     # PaymentCreate can be public; webhook is from Stripe and doesn't use Bearer
     require_auth = False

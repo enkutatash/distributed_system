@@ -10,14 +10,19 @@ from .models import Reservation
 from .serializers import ReservationCreateSerializer, ReservationSerializer
 
 # gRPC imports (now for both Catalog and Inventory)
+import os
 import grpc
 import ticketing_pb2
 import ticketing_pb2_grpc
 
+CATALOG_GRPC_HOST = os.environ.get('CATALOG_GRPC_HOST', 'catalog:60001')
+INVENTORY_GRPC_HOST = os.environ.get('INVENTORY_GRPC_HOST', 'inventory:50052')
+
+
 def get_event_via_grpc(event_id: str):
     """Get event details from Catalog (still needed for price)"""
     try:
-        with grpc.insecure_channel('localhost:60001') as channel:
+        with grpc.insecure_channel(CATALOG_GRPC_HOST) as channel:
             stub = ticketing_pb2_grpc.CatalogServiceStub(channel)
             request = ticketing_pb2.GetEventRequest(event_id=event_id)
             response = stub.GetEvent(request, timeout=5.0)
@@ -37,7 +42,7 @@ logger = logging.getLogger(__name__)
 def hold_tickets_via_inventory(event_id: str, reservation_id: str, quantity: int):
     """Atomic hold via Inventory Service"""
     try:
-        with grpc.insecure_channel('localhost:50052') as channel:  # Inventory gRPC port
+        with grpc.insecure_channel(INVENTORY_GRPC_HOST) as channel:  # Inventory gRPC port
             stub = ticketing_pb2_grpc.InventoryServiceStub(channel)
             request = ticketing_pb2.HoldTicketsRequest(
                 event_id=event_id,
@@ -55,7 +60,7 @@ def hold_tickets_via_inventory(event_id: str, reservation_id: str, quantity: int
 def sell_tickets_via_inventory(event_id: str, reservation_id: str, quantity: int):
     """Finalize tickets in Inventory Service."""
     try:
-        with grpc.insecure_channel('localhost:50052') as channel:
+        with grpc.insecure_channel(INVENTORY_GRPC_HOST) as channel:
             stub = ticketing_pb2_grpc.InventoryServiceStub(channel)
             request = ticketing_pb2.SellTicketsRequest(
                 event_id=event_id,
@@ -236,8 +241,20 @@ class ReservationViewSet(viewsets.GenericViewSet,
         )
 
         if not sell_success:
+            # Fallback: re-hold then sell once more in case hold key expired or was lost
             logger.warning(
-                "Inventory sell failed during confirm",
+                "Inventory sell failed during confirm; attempting re-hold",
+                extra={"event_id": str(reservation.event_id), "reservation_id": str(reservation.id), "qty": reservation.quantity},
+            )
+            rehold_success = hold_tickets_via_inventory(str(reservation.event_id), str(reservation.id), reservation.quantity)
+            if rehold_success:
+                sell_success = sell_tickets_via_inventory(
+                    str(reservation.event_id), str(reservation.id), reservation.quantity
+                )
+
+        if not sell_success:
+            logger.warning(
+                "Inventory sell failed during confirm after retry",
                 extra={"event_id": str(reservation.event_id), "reservation_id": str(reservation.id), "qty": reservation.quantity},
             )
             return Response({"error": "Failed to confirm tickets via inventory"}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
@@ -273,7 +290,7 @@ class ReservationViewSet(viewsets.GenericViewSet,
 def release_tickets_via_inventory(event_id: str, reservation_id: str, quantity: int):
     """Release held tickets"""
     try:
-        with grpc.insecure_channel('localhost:50052') as channel:
+        with grpc.insecure_channel(INVENTORY_GRPC_HOST) as channel:
             stub = ticketing_pb2_grpc.InventoryServiceStub(channel)
             request = ticketing_pb2.ReleaseTicketsRequest(
                 event_id=event_id,

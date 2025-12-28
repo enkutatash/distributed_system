@@ -75,6 +75,55 @@ class InventoryServicer(ticketing_pb2_grpc.InventoryServiceServicer):
 
                 success = r.evalsha(sell_sha, 0, str(event.id), int(request.quantity), str(request.reservation_id))
                 if success != 1:
+                    # Collect debug info and log inline so it appears in default console output
+                    hold_key = f"hold:{str(request.reservation_id)}"
+                    try:
+                        held_quantity = int(r.get(hold_key) or 0)
+                        ttl = int(r.ttl(hold_key) or -1)
+                    except Exception:
+                        held_quantity = -1
+                        ttl = -1
+                    try:
+                        redis_held = int(r.get(f"event:{str(event.id)}:held") or 0)
+                        redis_sold = int(r.get(f"event:{str(event.id)}:sold") or 0)
+                        redis_available = int(r.get(f"event:{str(event.id)}:available") or 0)
+                    except Exception:
+                        redis_held = redis_sold = redis_available = -1
+
+                    # Fallback repair: if hold key missing but counters show held >= requested, rebuild the hold and retry once
+                    rebuilt = False
+                    if held_quantity <= 0 and redis_held >= int(request.quantity):
+                        r.setex(hold_key, 300, int(request.quantity))
+                        rebuilt = True
+                        success_retry = r.evalsha(sell_sha, 0, str(event.id), int(request.quantity), str(request.reservation_id))
+                        if success_retry == 1:
+                            logger.warning(
+                                "SellTickets repaired missing hold and succeeded",
+                                extra={
+                                    "event_id": str(event.id),
+                                    "reservation_id": str(request.reservation_id),
+                                    "requested_qty": int(request.quantity),
+                                    "held_qty": held_quantity,
+                                    "redis_held": redis_held,
+                                },
+                            )
+                            return ticketing_pb2.SellTicketsResponse(success=True, message="Repaired hold and sold")
+
+                    logger.warning(
+                        (
+                            "SellTickets failed: event=%s res=%s req_qty=%d held_qty=%d ttl=%d "
+                            "redis{held=%d sold=%d available=%d} rebuilt=%s"
+                        ),
+                        str(event.id),
+                        str(request.reservation_id),
+                        int(request.quantity),
+                        held_quantity,
+                        ttl,
+                        redis_held,
+                        redis_sold,
+                        redis_available,
+                        rebuilt,
+                    )
                     return ticketing_pb2.SellTicketsResponse(success=False, message="No hold found or insufficient")
 
                 try:

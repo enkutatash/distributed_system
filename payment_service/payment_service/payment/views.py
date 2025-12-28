@@ -161,12 +161,15 @@ class StripeWebhookView(APIView):
 			try:
 				with httpx.Client(timeout=5.0) as client:
 					resp = client.post(booking_url, json={'payment_intent_id': payment_intent_id})
-				if resp.status_code >= 400:
+				if resp.status_code >= 500:
+					# Only mark failed on server errors; 4xx could be idempotent replays
 					Payment.objects.filter(stripe_payment_intent=payment_intent_id).update(status='FAILED')
-					logger.warning("Booking confirm failed after PI succeeded", extra={"status": resp.status_code, "body": resp.text})
+					logger.warning("Booking confirm failed after PI succeeded (server error)", extra={"status": resp.status_code, "body": resp.text})
+				elif resp.status_code >= 400:
+					logger.info("Booking confirm non-fatal response (likely already confirmed)", extra={"status": resp.status_code, "body": resp.text})
 			except Exception:
-				Payment.objects.filter(stripe_payment_intent=payment_intent_id).update(status='FAILED')
-				logger.warning("Booking confirm error after PI succeeded", exc_info=True)
+				# Network error — do not mark failed; rely on subsequent webhooks/retries
+				logger.warning("Booking confirm error after PI succeeded (network)", exc_info=True)
 
 		elif event['type'] == 'checkout.session.completed':
 			session = event['data']['object']
@@ -197,9 +200,11 @@ class StripeWebhookView(APIView):
 				try:
 					with httpx.Client(timeout=5.0) as client:
 						resp = client.post(booking_url, json={'payment_intent_id': payment_intent_id})
-					if resp.status_code >= 400:
+					if resp.status_code >= 500:
 						Payment.objects.filter(stripe_payment_intent=payment_intent_id).update(status='FAILED')
+					elif resp.status_code >= 400:
+						logger.info("Booking confirm non-fatal response (likely already confirmed)", extra={"status": resp.status_code, "body": resp.text})
 				except Exception:
-					Payment.objects.filter(stripe_payment_intent=payment_intent_id).update(status='FAILED')
+					logger.warning("Booking confirm error after checkout.session.completed (network)", exc_info=True)
 
 		return Response({'status': 'ok'}, status=status.HTTP_200_OK)

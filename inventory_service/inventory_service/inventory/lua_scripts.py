@@ -1,7 +1,11 @@
+import os
 import redis
 from django.conf import settings
 
-r = redis.Redis(host='localhost', port=6379, db=0)
+REDIS_HOST = os.environ.get('REDIS_HOST', 'redis')
+REDIS_PORT = int(os.environ.get('REDIS_PORT', 6379))
+
+r = redis.Redis(host=REDIS_HOST, port=REDIS_PORT, db=0)
 
 # Load scripts
 HOLD_SCRIPT = open('inventory/lua_scripts/hold.lua').read()

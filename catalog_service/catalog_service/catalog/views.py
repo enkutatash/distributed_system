@@ -10,6 +10,7 @@ import httpx
 from .serializers import EventSerializer
 from .filters import EventFilter
 import logging
+import os
 import redis
 
 logger = logging.getLogger(__name__)
@@ -18,7 +19,9 @@ logger = logging.getLogger(__name__)
 def get_inventory_counts(event_id, fallback):
     """Pull latest held/sold/available from Inventory's Redis; fall back to provided values."""
     try:
-        client = redis.Redis(host='localhost', port=6379, db=0)
+        redis_host = os.environ.get('REDIS_HOST', 'redis')
+        redis_port = int(os.environ.get('REDIS_PORT', 6379))
+        client = redis.Redis(host=redis_host, port=redis_port, db=0)
         held_key = f"event:{event_id}:held"
         sold_key = f"event:{event_id}:sold"
         available_key = f"event:{event_id}:available"
@@ -88,8 +91,9 @@ class EventViewSet(mixins.ListModelMixin,
             "total_tickets": event.total_tickets,
         }
         try:
+            inventory_base = os.environ.get("INVENTORY_HTTP_BASE", "http://inventory:8003")
             with httpx.Client(timeout=5.0) as client:
-                resp = client.post("http://localhost:8004/api/v1/events", json=payload)
+                resp = client.post(f"{inventory_base}/api/v1/events", json=payload)
             if resp.status_code not in (200, 201):
                 logger.error("Inventory provisioning failed: status=%s body=%s", resp.status_code, resp.text)
                 # Roll back catalog event to prevent inconsistency
@@ -126,7 +130,8 @@ class EventViewSet(mixins.ListModelMixin,
     def destroy(self, request, *args, **kwargs):
         # Delete in Inventory first to keep services in sync
         event = self.get_object()
-        inventory_url = f"http://localhost:8003/api/v1/events/{event.id}"
+        inventory_base = os.environ.get("INVENTORY_HTTP_BASE", "http://inventory:8003")
+        inventory_url = f"{inventory_base}/api/v1/events/{event.id}"
         try:
             with httpx.Client(timeout=5.0) as client:
                 resp = client.delete(inventory_url)

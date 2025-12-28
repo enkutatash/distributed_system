@@ -2,17 +2,18 @@ from rest_framework.authentication import BaseAuthentication
 from rest_framework.exceptions import AuthenticationFailed
 from types import SimpleNamespace
 import requests
+import os
 
 
 class AuthServiceTokenAuth(BaseAuthentication):
     """Authenticate by delegating token validation to the central auth service.
 
     Expects the auth service to expose a small validate endpoint at
-    http://localhost:8000/api/v1/token/validate/ which returns 200 and
-    {'user_id': '<uuid>'} for valid tokens.
+    http://gateway:8000/api/v1/token/validate/ (or overridden via env)
+    which returns 200 and {'user_id': '<uuid>'} for valid tokens.
     """
 
-    VALIDATE_URL = 'http://localhost:8000/api/v1/token/validate/'
+    VALIDATE_URL = os.environ.get('AUTH_VALIDATE_URL', 'http://gateway:8000/api/v1/token/validate/')
 
     def authenticate(self, request):
         auth_header = request.headers.get('Authorization')

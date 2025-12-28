@@ -4,8 +4,13 @@ from rest_framework.authentication import BaseAuthentication
 from rest_framework.exceptions import AuthenticationFailed
 import httpx  # or requests
 
-# Since Auth is in Gateway, call Gateway to validate token
-AUTH_SERVICE_VALIDATE = "http://localhost:8000/api/v1/token/validate/"
+# Since Auth is in Gateway, call Gateway to validate token (container-to-container)
+import os
+
+AUTH_SERVICE_VALIDATE = os.environ.get(
+    "AUTH_VALIDATE_URL",
+    "http://gateway:8000/api/v1/token/validate/",
+)
 
 
 class GatewayTokenAuthentication(BaseAuthentication):
