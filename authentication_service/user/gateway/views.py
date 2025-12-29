@@ -133,7 +133,8 @@ class ProxyView(APIView):
                     content=request.body,
                     params=request.GET,  # already in full_path, but safe
                 )
-                print(f"[gateway] proxied response: status={resp.status_code} content_type={resp.headers.get('Content-Type')}")
+                body_preview = resp.text[:500] if resp.text is not None else ''
+                print(f"[gateway] proxied response: status={resp.status_code} content_type={resp.headers.get('Content-Type')} body={body_preview}")
 
             # === 6. Return correct response type ===
             content_type = resp.headers.get('Content-Type', '')

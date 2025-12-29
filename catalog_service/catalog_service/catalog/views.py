@@ -76,7 +76,7 @@ class EventViewSet(mixins.ListModelMixin,
     ordering = ['start_at']  # default ordering
 
     def initial(self, request, *args, **kwargs):
-        # Debug: log incoming requests for troubleshooting proxied calls
+        # Debug: log incoming requmests for troubleshooting proxied calls
         try:
             key_headers = {k: v for k, v in request.headers.items() if k.lower() in ('authorization', 'content-type')}
         except Exception:
