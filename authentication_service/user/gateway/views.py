@@ -123,7 +123,8 @@ class ProxyView(APIView):
 
         # === 5. Forward the request ===
         try:
-            with httpx.Client(timeout=10.0) as client:
+            # Allow slower upstreams (validator + catalog + inventory chain)
+            with httpx.Client(timeout=60.0) as client:
                 print(f"[gateway] forwarding: method={request.method} url={internal_url}")
                 resp = client.request(
                     method=request.method,
