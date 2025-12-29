@@ -27,17 +27,20 @@ class GatewayTokenAuthentication(BaseAuthentication):
                     AUTH_SERVICE_VALIDATE,
                     headers={"Authorization": f"Bearer {token}"},
                 )
-        except Exception:
+        except Exception as exc:
             # If auth service is unreachable and this is a safe method, fall back to anonymous
+            # Emit a debug print to trace the failure.
+            print(f"[catalog auth] validator call failed url={AUTH_SERVICE_VALIDATE} error={exc}")
             if request.method in ('GET', 'HEAD', 'OPTIONS'):
                 return None
-            raise AuthenticationFailed('Auth service unreachable')
+            raise AuthenticationFailed(f"Auth service unreachable: {exc}")
 
         if response.status_code != 200:
             # Allow reads to proceed anonymously if token fails; writes still fail
+            print(f"[catalog auth] validator status={response.status_code} body={response.text}")
             if request.method in ('GET', 'HEAD', 'OPTIONS'):
                 return None
-            raise AuthenticationFailed('Invalid token')
+            raise AuthenticationFailed(f"Invalid token (status {response.status_code})")
 
         data = response.json()
         # Construct a lightweight user-like object
@@ -46,5 +49,10 @@ class GatewayTokenAuthentication(BaseAuthentication):
                 self.id = user_id
                 self.is_staff = is_staff
                 self.is_authenticated = True
+
+        try:
+            print(f"[catalog auth] validator ok is_staff={data.get('is_staff')} user_id={data.get('user_id')}")
+        except Exception:
+            pass
 
         return (RemoteUser(data.get('user_id'), data.get('is_staff', False)), None)
