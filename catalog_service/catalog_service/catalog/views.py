@@ -101,6 +101,8 @@ class EventViewSet(mixins.ListModelMixin,
         }
         try:
             inventory_base = os.environ.get("INVENTORY_HTTP_BASE", "http://inventory:8003")
+            if inventory_base == "http://inventory:8003":
+                logger.warning("INVENTORY_HTTP_BASE not set; using default internal host inventory:8003")
             with httpx.Client(timeout=5.0) as client:
                 print(f"[catalog->inventory] url={inventory_base}/api/v1/events payload={payload}")
                 resp = client.post(f"{inventory_base}/api/v1/events", json=payload)
@@ -141,6 +143,8 @@ class EventViewSet(mixins.ListModelMixin,
         # Delete in Inventory first to keep services in sync
         event = self.get_object()
         inventory_base = os.environ.get("INVENTORY_HTTP_BASE", "http://inventory:8003")
+        if inventory_base == "http://inventory:8003":
+            logger.warning("INVENTORY_HTTP_BASE not set; using default internal host inventory:8003")
         inventory_url = f"{inventory_base}/api/v1/events/{event.id}"
         try:
             with httpx.Client(timeout=5.0) as client:

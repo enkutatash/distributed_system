@@ -124,7 +124,7 @@ class ProxyView(APIView):
         # === 5. Forward the request ===
         try:
             # Allow slower upstreams (validator + catalog + inventory chain)
-            with httpx.Client(timeout=60.0) as client:
+            with httpx.Client(timeout=25.0) as client:
                 print(f"[gateway] forwarding: method={request.method} url={internal_url}")
                 resp = client.request(
                     method=request.method,
@@ -153,6 +153,9 @@ class ProxyView(APIView):
             proxy_response['X-Proxied-URL'] = internal_url
             return proxy_response
 
+        except httpx.TimeoutException as exc:
+            body = json.dumps({"error": "Upstream service timed out", "detail": str(exc)})
+            return HttpResponse(body, status=status.HTTP_504_GATEWAY_TIMEOUT, content_type='application/json')
         except httpx.RequestError as exc:
             body = json.dumps({"error": "Unable to reach internal service", "detail": str(exc)})
             return HttpResponse(body, status=status.HTTP_503_SERVICE_UNAVAILABLE, content_type='application/json')
