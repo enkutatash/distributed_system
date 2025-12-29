@@ -16,10 +16,16 @@ Including another URLconf
 """
 from django.contrib import admin
 from django.urls import path
+from django.http import HttpResponse
 from authentication.views import RegisterView, LoginView, ValidateTokenView
 from gateway.views import BookingProxy, CatalogProxy, PaymentProxy
 
+
+def health_check(_request):
+    return HttpResponse("OK", content_type="text/plain")
+
 urlpatterns = [
+    path('', health_check),
     path('admin/', admin.site.urls),
     path('register/', RegisterView.as_view(), name='register'),
     path('login/', LoginView.as_view(), name='login'),

@@ -9,7 +9,7 @@ import os
 
 AUTH_SERVICE_VALIDATE = os.environ.get(
     "AUTH_VALIDATE_URL",
-    "http://gateway:8000/api/v1/token/validate/",
+    "https://gateway-lcgk.onrender.com/api/v1/token/validate/",
 )
 
 
@@ -23,9 +23,13 @@ class GatewayTokenAuthentication(BaseAuthentication):
 
         last_exc = None
         response = None
+        try:
+            print(f"[catalog auth] validating via url={AUTH_SERVICE_VALIDATE}")
+        except Exception:
+            pass
         for attempt in range(3):  # simple retry for transient network issues
             try:
-                with httpx.Client(timeout=3.0) as client:
+                with httpx.Client(timeout=30.0) as client:
                     response = client.get(
                         AUTH_SERVICE_VALIDATE,
                         headers={"Authorization": f"Bearer {token}"},
@@ -38,7 +42,7 @@ class GatewayTokenAuthentication(BaseAuthentication):
             # If auth service is unreachable and this is a safe method, fall back to anonymous
             if request.method in ('GET', 'HEAD', 'OPTIONS'):
                 return None
-            raise AuthenticationFailed(f"Auth service unreachable: {last_exc}")
+            raise AuthenticationFailed(f"Auth service unreachable url={AUTH_SERVICE_VALIDATE}: {last_exc}")
 
         if response.status_code != 200:
             # Allow reads to proceed anonymously if token fails; writes still fail
