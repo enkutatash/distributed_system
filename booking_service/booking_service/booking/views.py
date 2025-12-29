@@ -12,10 +12,12 @@ from .serializers import ReservationCreateSerializer, ReservationSerializer
 # gRPC imports (now for both Catalog and Inventory)
 import os
 import grpc
+import httpx
 import ticketing_pb2
 import ticketing_pb2_grpc
 
 CATALOG_GRPC_HOST = os.environ.get('CATALOG_GRPC_HOST', 'catalog:60001')
+CATALOG_HTTP_BASE = os.environ.get('CATALOG_HTTP_BASE')  # Optional HTTP fallback, e.g., https://catalog-xxx.onrender.com/api/v1
 INVENTORY_GRPC_HOST = os.environ.get('INVENTORY_GRPC_HOST', 'inventory:50052')
 
 
@@ -35,6 +37,25 @@ def get_event_via_grpc(event_id: str):
         if e.code() == grpc.StatusCode.NOT_FOUND:
             return None
         raise
+
+
+def get_event_via_http(event_id: str):
+    """Fetch event via Catalog HTTP API (Render-friendly fallback)."""
+    if not CATALOG_HTTP_BASE:
+        return None
+    base = CATALOG_HTTP_BASE.rstrip('/')
+    url = f"{base}/events/{event_id}"
+    try:
+        resp = httpx.get(url, timeout=10.0)
+        if resp.status_code == 200:
+            data = resp.json()
+            return {
+                'price_cents': data.get('price_cents'),
+            }
+        return None
+    except Exception as exc:  # noqa: BLE001
+        logger.warning("Catalog HTTP fetch failed", extra={"url": url, "error": str(exc)})
+        return None
 
 
 logger = logging.getLogger(__name__)
@@ -117,8 +138,8 @@ class ReservationViewSet(viewsets.GenericViewSet,
         if not user_id:
             return Response({"error": "User ID required"}, status=401)
 
-        # 1. Get price from Catalog (still needed)
-        event_data = get_event_via_grpc(str(event_id))
+        # 1. Get price from Catalog (prefer HTTP when provided, fallback to gRPC)
+        event_data = get_event_via_http(str(event_id)) or get_event_via_grpc(str(event_id))
         if event_data is None:
             return Response({"error": "Event not found"}, status=status.HTTP_404_NOT_FOUND)
 
