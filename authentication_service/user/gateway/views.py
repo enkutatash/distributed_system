@@ -56,6 +56,12 @@ class ProxyView(APIView):
                 # leave auth_token as None — we'll enforce below if required
                 auth_token = None
 
+        # Debug inbound at gateway
+        try:
+            print(f"[gateway inbound] method={request.method} path={request.get_full_path()} headers={dict(request.headers)} body={request.body}")
+        except Exception:
+            pass
+
         # If this proxy requires authentication, enforce presence of a valid token
         # Avoid crashing when no token is provided by safely stringifying it
         print(f"token is here {token}")
@@ -111,6 +117,9 @@ class ProxyView(APIView):
         if user_id:
             forward_headers['X-User-ID'] = user_id
         forward_headers['X-Is-Staff'] = 'true' if is_staff else 'false'
+
+        # Debug outbound to catalog
+        print(f"[gateway outbound] to={internal_url} headers={forward_headers} body={request.body}")
 
         # === 5. Forward the request ===
         try:

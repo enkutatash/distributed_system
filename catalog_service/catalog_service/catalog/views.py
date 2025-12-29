@@ -85,6 +85,11 @@ class EventViewSet(mixins.ListModelMixin,
         return super().initial(request, *args, **kwargs)
 
     def create(self, request, *args, **kwargs):
+        try:
+            print(f"[catalog inbound] method={request.method} path={request.get_full_path()} headers={dict(request.headers)} body={request.body}")
+        except Exception:
+            pass
+
         serializer = self.get_serializer(data=request.data)
         serializer.is_valid(raise_exception=True)
         event = serializer.save()
@@ -97,6 +102,7 @@ class EventViewSet(mixins.ListModelMixin,
         try:
             inventory_base = os.environ.get("INVENTORY_HTTP_BASE", "http://inventory:8003")
             with httpx.Client(timeout=5.0) as client:
+                print(f"[catalog->inventory] url={inventory_base}/api/v1/events payload={payload}")
                 resp = client.post(f"{inventory_base}/api/v1/events", json=payload)
             if resp.status_code not in (200, 201):
                 logger.error("Inventory provisioning failed: status=%s body=%s", resp.status_code, resp.text)
