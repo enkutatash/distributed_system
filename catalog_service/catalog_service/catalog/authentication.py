@@ -21,19 +21,24 @@ class GatewayTokenAuthentication(BaseAuthentication):
 
         token = auth_header.split(' ', 1)[1]
 
-        try:
-            with httpx.Client(timeout=5.0) as client:
-                response = client.get(
-                    AUTH_SERVICE_VALIDATE,
-                    headers={"Authorization": f"Bearer {token}"},
-                )
-        except Exception as exc:
+        last_exc = None
+        response = None
+        for attempt in range(3):  # simple retry for transient network issues
+            try:
+                with httpx.Client(timeout=3.0) as client:
+                    response = client.get(
+                        AUTH_SERVICE_VALIDATE,
+                        headers={"Authorization": f"Bearer {token}"},
+                    )
+                break
+            except Exception as exc:
+                last_exc = exc
+                print(f"[catalog auth] validator attempt {attempt+1}/3 failed url={AUTH_SERVICE_VALIDATE} error={exc}")
+        if response is None:
             # If auth service is unreachable and this is a safe method, fall back to anonymous
-            # Emit a debug print to trace the failure.
-            print(f"[catalog auth] validator call failed url={AUTH_SERVICE_VALIDATE} error={exc}")
             if request.method in ('GET', 'HEAD', 'OPTIONS'):
                 return None
-            raise AuthenticationFailed(f"Auth service unreachable: {exc}")
+            raise AuthenticationFailed(f"Auth service unreachable: {last_exc}")
 
         if response.status_code != 200:
             # Allow reads to proceed anonymously if token fails; writes still fail
