@@ -1,10 +1,11 @@
 services:
   # --------------------
-  # Redis
+  # Redis (internal only)
   # --------------------
   - type: redis
     name: ticketing-redis
     plan: free
+    ipAllowList: []
 
   # --------------------
   # Gateway Service
@@ -38,6 +39,7 @@ services:
         fromDatabase:
           name: ticketing-postgres
           property: password
+
       - key: STRIPE_SECRET_KEY
         sync: false
       - key: STRIPE_PUBLISHABLE_KEY
@@ -76,6 +78,7 @@ services:
         fromDatabase:
           name: ticketing-postgres
           property: password
+
       - key: REDIS_URL
         fromService:
           type: redis
@@ -113,6 +116,7 @@ services:
         fromDatabase:
           name: ticketing-postgres
           property: password
+
       - key: REDIS_URL
         fromService:
           type: redis
@@ -150,6 +154,7 @@ services:
         fromDatabase:
           name: ticketing-postgres
           property: password
+
       - key: REDIS_URL
         fromService:
           type: redis
@@ -187,6 +192,7 @@ services:
         fromDatabase:
           name: ticketing-postgres
           property: password
+
       - key: STRIPE_SECRET_KEY
         sync: false
       - key: STRIPE_PUBLISHABLE_KEY
@@ -201,4 +207,4 @@ databases:
   - name: ticketing-postgres
     plan: free
     databaseName: ticketing_db
-    user: postgres
+    user: ticketinguser
