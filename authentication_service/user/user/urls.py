@@ -16,7 +16,26 @@ Including another URLconf
 """
 from django.contrib import admin
 from django.urls import path
+from authentication.views import RegisterView, LoginView, ValidateTokenView
+from gateway.views import BookingProxy, CatalogProxy, PaymentProxy
 
 urlpatterns = [
     path('admin/', admin.site.urls),
+    path('register/', RegisterView.as_view(), name='register'),
+    path('login/', LoginView.as_view(), name='login'),
+    path('api/v1/token/validate/', ValidateTokenView.as_view()),
+
+    path('api/v1/events/', CatalogProxy.as_view()),
+    path('api/v1/events/<path:path>', CatalogProxy.as_view()),
+
+    # Booking
+    path('api/v1/reservations/', BookingProxy.as_view()),
+    path('api/v1/reservations/<path:path>', BookingProxy.as_view()),
+
+    # Payments
+    path('api/v1/payments/', PaymentProxy.as_view()),
+    path('api/v1/payments/<path:path>', PaymentProxy.as_view()),
+    
 ]
+
+
