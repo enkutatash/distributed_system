@@ -1,4 +1,14 @@
 services:
+  # --------------------
+  # Redis
+  # --------------------
+  - type: redis
+    name: ticketing-redis
+    plan: free
+
+  # --------------------
+  # Gateway Service
+  # --------------------
   - type: web
     name: gateway
     env: docker
@@ -29,12 +39,15 @@ services:
           name: ticketing-postgres
           property: password
       - key: STRIPE_SECRET_KEY
-        sync: false  # add manually in Render dashboard for security
+        sync: false
       - key: STRIPE_PUBLISHABLE_KEY
         sync: false
       - key: STRIPE_WEBHOOK_SECRET
         sync: false
 
+  # --------------------
+  # Catalog Service
+  # --------------------
   - type: web
     name: catalog
     env: docker
@@ -63,15 +76,15 @@ services:
         fromDatabase:
           name: ticketing-postgres
           property: password
-      - key: REDIS_HOST
+      - key: REDIS_URL
         fromService:
+          type: redis
           name: ticketing-redis
-          property: host
-      - key: REDIS_PORT
-        fromService:
-          name: ticketing-redis
-          property: port
+          property: connectionString
 
+  # --------------------
+  # Booking Service
+  # --------------------
   - type: web
     name: booking
     env: docker
@@ -100,15 +113,15 @@ services:
         fromDatabase:
           name: ticketing-postgres
           property: password
-      - key: REDIS_HOST
+      - key: REDIS_URL
         fromService:
+          type: redis
           name: ticketing-redis
-          property: host
-      - key: REDIS_PORT
-        fromService:
-          name: ticketing-redis
-          property: port
+          property: connectionString
 
+  # --------------------
+  # Inventory Service
+  # --------------------
   - type: web
     name: inventory
     env: docker
@@ -137,15 +150,15 @@ services:
         fromDatabase:
           name: ticketing-postgres
           property: password
-      - key: REDIS_HOST
+      - key: REDIS_URL
         fromService:
+          type: redis
           name: ticketing-redis
-          property: host
-      - key: REDIS_PORT
-        fromService:
-          name: ticketing-redis
-          property: port
+          property: connectionString
 
+  # --------------------
+  # Payment Service
+  # --------------------
   - type: web
     name: payment
     env: docker
@@ -175,18 +188,17 @@ services:
           name: ticketing-postgres
           property: password
       - key: STRIPE_SECRET_KEY
-        sync: false  # add manually in Render dashboard
+        sync: false
       - key: STRIPE_PUBLISHABLE_KEY
         sync: false
       - key: STRIPE_WEBHOOK_SECRET
         sync: false
 
+# --------------------
+# PostgreSQL Database
+# --------------------
 databases:
   - name: ticketing-postgres
     plan: free
     databaseName: ticketing_db
     user: postgres
-
-redis:
-  - name: ticketing-redis
-    plan: free
