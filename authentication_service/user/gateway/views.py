@@ -2,6 +2,7 @@
 
 import httpx
 import json
+import os
 from django.utils import timezone
 from urllib.parse import urljoin
 from rest_framework.views import APIView
@@ -143,21 +144,19 @@ class ProxyView(APIView):
 
 # Public Catalog Service (read-only public, create protected by admin check above)
 class CatalogProxy(ProxyView):
-    # Use container service name inside Docker
-    internal_url = "http://catalog:8002/api/v1"
+    # Use env override for hosted envs (e.g., Render); fallback to Docker service name
+    internal_url = os.environ.get("CATALOG_BASE_URL", "http://catalog:8002/api/v1")
     require_auth = False  # Read access is public
 
 
 # Protected Booking Service
 class BookingProxy(ProxyView):
-    # Use container service name inside Docker
-    internal_url = "http://booking:8001/api/v1"
+    internal_url = os.environ.get("BOOKING_BASE_URL", "http://booking:8001/api/v1")
     require_auth = True
 
 
 # Payment Service (internal webhook + public create as needed)
 class PaymentProxy(ProxyView):
-    # Use container service name inside Docker
-    internal_url = "http://payment:8004/api/v1"
+    internal_url = os.environ.get("PAYMENT_BASE_URL", "http://payment:8004/api/v1")
     # PaymentCreate can be public; webhook is from Stripe and doesn't use Bearer
     require_auth = False

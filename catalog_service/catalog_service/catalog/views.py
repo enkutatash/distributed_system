@@ -19,9 +19,13 @@ logger = logging.getLogger(__name__)
 def get_inventory_counts(event_id, fallback):
     """Pull latest held/sold/available from Inventory's Redis; fall back to provided values."""
     try:
-        redis_host = os.environ.get('REDIS_HOST', 'redis')
-        redis_port = int(os.environ.get('REDIS_PORT', 6379))
-        client = redis.Redis(host=redis_host, port=redis_port, db=0)
+        redis_url = os.environ.get('REDIS_URL')
+        if redis_url:
+            client = redis.from_url(redis_url)
+        else:
+            redis_host = os.environ.get('REDIS_HOST', 'redis')
+            redis_port = int(os.environ.get('REDIS_PORT', 6379))
+            client = redis.Redis(host=redis_host, port=redis_port, db=0)
         held_key = f"event:{event_id}:held"
         sold_key = f"event:{event_id}:sold"
         available_key = f"event:{event_id}:available"
