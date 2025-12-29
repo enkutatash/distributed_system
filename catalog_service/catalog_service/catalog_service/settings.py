@@ -155,8 +155,8 @@ CORS_ALLOW_CREDENTIALS = True
 # REST framework settings: use gateway token authentication first
 REST_FRAMEWORK = {
     'DEFAULT_AUTHENTICATION_CLASSES': (
+        # Only trust gateway token auth; avoid SessionAuthentication to prevent CSRF 403 on API calls.
         'catalog.authentication.GatewayTokenAuthentication',
-        'rest_framework.authentication.SessionAuthentication',
     ),
     'DEFAULT_PERMISSION_CLASSES': (
         'rest_framework.permissions.AllowAny',
