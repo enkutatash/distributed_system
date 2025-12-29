@@ -28,9 +28,15 @@ class GatewayTokenAuthentication(BaseAuthentication):
                     headers={"Authorization": f"Bearer {token}"},
                 )
         except Exception:
+            # If auth service is unreachable and this is a safe method, fall back to anonymous
+            if request.method in ('GET', 'HEAD', 'OPTIONS'):
+                return None
             raise AuthenticationFailed('Auth service unreachable')
 
         if response.status_code != 200:
+            # Allow reads to proceed anonymously if token fails; writes still fail
+            if request.method in ('GET', 'HEAD', 'OPTIONS'):
+                return None
             raise AuthenticationFailed('Invalid token')
 
         data = response.json()

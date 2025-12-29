@@ -106,6 +106,8 @@ class ProxyView(APIView):
             for key, value in request.headers.items()
             if key.lower() not in ['host', 'content-length']
         }
+        # Avoid gzipped upstream responses so clients see readable bodies
+        forward_headers['Accept-Encoding'] = 'identity'
         if user_id:
             forward_headers['X-User-ID'] = user_id
         forward_headers['X-Is-Staff'] = 'true' if is_staff else 'false'
@@ -133,6 +135,9 @@ class ProxyView(APIView):
                 status=resp.status_code,
                 content_type=content_type or 'application/octet-stream'
             )
+            # Preserve content-encoding if any (rare once we force identity)
+            if resp.headers.get('Content-Encoding'):
+                proxy_response['Content-Encoding'] = resp.headers['Content-Encoding']
             # Optional debug header to see actual internal route used
             proxy_response['X-Proxied-URL'] = internal_url
             return proxy_response
