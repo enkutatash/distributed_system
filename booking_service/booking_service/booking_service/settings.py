@@ -99,6 +99,9 @@ if DB_HOST:
             'PASSWORD': DB_PASSWORD,
             'HOST': DB_HOST,
             'PORT': DB_PORT,
+            'OPTIONS': {
+                'sslmode': 'require',
+            },
         }
     }
 else:
