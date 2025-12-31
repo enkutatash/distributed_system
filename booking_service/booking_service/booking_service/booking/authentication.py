@@ -14,6 +14,7 @@ class AuthServiceTokenAuth(BaseAuthentication):
     """
 
     VALIDATE_URL = os.environ.get('AUTH_VALIDATE_URL', 'http://gateway:8000/api/v1/token/validate/')
+    VALIDATE_TIMEOUT = float(os.environ.get('AUTH_VALIDATE_TIMEOUT', '5.0'))
 
     def authenticate(self, request):
         auth_header = request.headers.get('Authorization')
@@ -21,7 +22,7 @@ class AuthServiceTokenAuth(BaseAuthentication):
             return None
 
         try:
-            resp = requests.get(self.VALIDATE_URL, headers={'Authorization': auth_header}, timeout=2.0)
+            resp = requests.get(self.VALIDATE_URL, headers={'Authorization': auth_header}, timeout=self.VALIDATE_TIMEOUT)
         except requests.RequestException:
             raise AuthenticationFailed('Auth service unreachable')
 
