@@ -111,6 +111,7 @@ services:
       DB_HOST: dpg-d591o8h5pdvs73a4ieag-a.oregon-postgres.render.com
       DB_PORT: '5432'
       BOOKING_BASE_URL: http://booking:8001
+      GATEWAY_BASE_URL: http://localhost:8000
       STRIPE_SECRET_KEY: ${STRIPE_SECRET_KEY}
       STRIPE_PUBLISHABLE_KEY: ${STRIPE_PUBLISHABLE_KEY}
       STRIPE_WEBHOOK_SECRET: ${STRIPE_WEBHOOK_SECRET}
