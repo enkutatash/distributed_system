@@ -36,6 +36,8 @@ ALLOWED_HOSTS = [
 # Application definition
 
 INSTALLED_APPS = [
+    'cloudinary_storage',
+    'cloudinary',
     'corsheaders',
     'rest_framework',
     'django_filters',
@@ -148,6 +150,43 @@ USE_TZ = True
 # https://docs.djangoproject.com/en/6.0/howto/static-files/
 
 STATIC_URL = 'static/'
+MEDIA_URL = '/media/'
+MEDIA_ROOT = BASE_DIR / 'media'
+
+# Cloudinary Configuration
+# Uses CLOUDINARY_URL environment variable in format: cloudinary://api_key:api_secret@cloud_name
+# Example: cloudinary://596853172373879:w8wejdD73_llcHYwxoLs9y5KrGw@dbpcqezob
+import cloudinary
+import cloudinary.uploader
+import cloudinary.api
+
+# Parse CLOUDINARY_URL if provided, otherwise use individual env vars or defaults
+cloudinary_url = os.environ.get('CLOUDINARY_URL')
+if cloudinary_url:
+    # Parse URL format: cloudinary://api_key:api_secret@cloud_name
+    from urllib.parse import urlparse
+    parsed = urlparse(cloudinary_url)
+    cloud_name = parsed.hostname
+    api_key = parsed.username
+    api_secret = parsed.password
+    
+    cloudinary.config(
+        cloud_name=cloud_name,
+        api_key=api_key,
+        api_secret=api_secret,
+        secure=True
+    )
+else:
+    # Fallback to individual environment variables or defaults
+    cloudinary.config(
+        cloud_name=os.environ.get('CLOUDINARY_CLOUD_NAME', 'dbpcqezob'),
+        api_key=os.environ.get('CLOUDINARY_API_KEY', '596853172373879'),
+        api_secret=os.environ.get('CLOUDINARY_API_SECRET', 'w8wejdD73_llcHYwxoLs9y5KrGw'),
+        secure=True
+    )
+
+# Use Cloudinary for media file storage
+DEFAULT_FILE_STORAGE = 'cloudinary_storage.storage.MediaCloudinaryStorage'
 
 # CORS (development)
 # Allow any origin (use restrictive config in production)
