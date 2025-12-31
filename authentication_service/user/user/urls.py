@@ -36,6 +36,9 @@ urlpatterns = [
     path('api/v1/payments/', PaymentProxy.as_view()),
     path('api/v1/payments/<path:path>', PaymentProxy.as_view()),
     
+    # Payment frontend pages (success and cancel)
+    path('payment/success/', PaymentProxy.as_view()),
+    path('payment/cancel/', PaymentProxy.as_view()),
 ]
 
 

@@ -87,13 +87,21 @@ class ProxyView(APIView):
         # === 3. Build internal URL cleanly ===
         # Use safe prefix stripping (not str.lstrip, which removes any matching chars)
         full_path = request.get_full_path()  # includes query string, e.g. /api/v1/events/?page=2
-        prefix = '/api/v1'
-        if full_path.startswith(prefix):
-            suffix = full_path[len(prefix):].lstrip('/')
-        else:
+        
+        # Handle payment frontend pages (not under /api/v1)
+        if full_path.startswith('/payment/'):
+            # For payment pages, route directly to payment service
             suffix = full_path.lstrip('/')
-        internal_url = urljoin(self.internal_url.rstrip('/') + '/', suffix)
-        # Result: http://localhost:XXXX/api/v1/<suffix>
+            internal_url = urljoin("http://payment:8004/", suffix)
+        else:
+            # For API endpoints, use the standard prefix
+            prefix = '/api/v1'
+            if full_path.startswith(prefix):
+                suffix = full_path[len(prefix):].lstrip('/')
+            else:
+                suffix = full_path.lstrip('/')
+            internal_url = urljoin(self.internal_url.rstrip('/') + '/', suffix)
+        # Result: http://localhost:XXXX/api/v1/<suffix> or http://payment:8004/payment/<suffix>
 
         # === 4. Prepare headers for internal service ===
         # Forward most incoming headers to the internal service.

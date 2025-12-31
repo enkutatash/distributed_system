@@ -1,10 +1,12 @@
 import json
 import logging
+import os
 import stripe
 import httpx
 from django.conf import settings
 from django.views.decorators.csrf import csrf_exempt
 from django.utils.decorators import method_decorator
+from django.shortcuts import render
 from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework import status
@@ -58,9 +60,18 @@ class PaymentCreateView(APIView):
 			status='PENDING'
 		)
 
-		# Optional override of success/cancel URLs (neutral defaults that don't hit gateway)
-		success_url = request.data.get('success_url') or 'https://example.com/success?reservation_id={RES}'
-		cancel_url = request.data.get('cancel_url') or 'https://example.com/cancel?reservation_id={RES}'
+		# Use frontend success/cancel pages (accessible through gateway)
+		# Always use GATEWAY_BASE_URL since requests are proxied through gateway
+		# The request.get_host() would return internal service host (payment:8004), not the gateway
+		base_url = os.environ.get('GATEWAY_BASE_URL', 'http://localhost:8000')
+		# Remove trailing slash if present
+		base_url = base_url.rstrip('/')
+		
+		default_success_url = f"{base_url}/payment/success/?reservation_id={{RES}}"
+		default_cancel_url = f"{base_url}/payment/cancel/?reservation_id={{RES}}"
+		
+		success_url = request.data.get('success_url') or default_success_url
+		cancel_url = request.data.get('cancel_url') or default_cancel_url
 		success_url = success_url.replace('{RES}', str(reservation_id))
 		cancel_url = cancel_url.replace('{RES}', str(reservation_id))
 
@@ -208,3 +219,21 @@ class StripeWebhookView(APIView):
 					logger.warning("Booking confirm error after checkout.session.completed (network)", exc_info=True)
 
 		return Response({'status': 'ok'}, status=status.HTTP_200_OK)
+
+
+def payment_success(request):
+	"""Render payment success page"""
+	reservation_id = request.GET.get('reservation_id', '')
+	context = {
+		'reservation_id': reservation_id,
+	}
+	return render(request, 'payment/success.html', context)
+
+
+def payment_cancel(request):
+	"""Render payment cancel/failed page"""
+	reservation_id = request.GET.get('reservation_id', '')
+	context = {
+		'reservation_id': reservation_id,
+	}
+	return render(request, 'payment/cancel.html', context)

@@ -27,13 +27,11 @@ services:
     ports:
       - '8000:8000'
     environment:
-      DB_NAME: auth_db
-      DB_USER: postgres
-      DB_PASSWORD: postgres
-      DB_HOST: postgres
+      DB_NAME: ticketing_db_d45q
+      DB_USER: ticketinguser
+      DB_PASSWORD: pyw9wBAVv723L8XPEjwhuyrAD35yc2Ao
+      DB_HOST: dpg-d591o8h5pdvs73a4ieag-a.oregon-postgres.render.com
       DB_PORT: '5432'
-    depends_on:
-      - postgres
 
   booking:
     image: python:3.12-slim
@@ -44,10 +42,10 @@ services:
     ports:
       - '8001:8001'
     environment:
-      DB_NAME: booking_db
-      DB_USER: postgres
-      DB_PASSWORD: postgres
-      DB_HOST: postgres
+      DB_NAME: ticketing_db_d45q
+      DB_USER: ticketinguser
+      DB_PASSWORD: pyw9wBAVv723L8XPEjwhuyrAD35yc2Ao
+      DB_HOST: dpg-d591o8h5pdvs73a4ieag-a.oregon-postgres.render.com
       DB_PORT: '5432'
     depends_on:
       - postgres
@@ -59,18 +57,19 @@ services:
     working_dir: /app
     volumes:
       - ./catalog_service/catalog_service:/app
-    command: /bin/sh -c "pip install -r requirements.txt && pip install psycopg2-binary && python run_servers.py runserver 0.0.0.0:8002"
+    command: /bin/sh -c "pip install -r requirements.txt && pip install psycopg2-binary && python manage.py migrate && python run_servers.py runserver 0.0.0.0:8002"
     ports:
       - '8002:8002'
     environment:
-      DB_NAME: catalog_db
-      DB_USER: postgres
-      DB_PASSWORD: postgres
-      DB_HOST: postgres
+      DB_NAME: ticketing_db_d45q
+      DB_USER: ticketinguser
+      DB_PASSWORD: pyw9wBAVv723L8XPEjwhuyrAD35yc2Ao
+      DB_HOST: dpg-d591o8h5pdvs73a4ieag-a.oregon-postgres.render.com
       DB_PORT: '5432'
-      REDIS_HOST: redis
-      REDIS_PORT: '6379'
+      REDIS_URL: redis://redis:6379
       INVENTORY_HTTP_BASE: http://inventory:8003
+      GATEWAY_BASE_URL: http://localhost:8000
+      CLOUDINARY_URL: cloudinary://596853172373879:w8wejdD73_llcHYwxoLs9y5KrGw@dbpcqezob
     depends_on:
       - postgres
       - redis
@@ -85,16 +84,17 @@ services:
     ports:
       - '8003:8003'
     environment:
-      DB_NAME: inventory_db
-      DB_USER: postgres
-      DB_PASSWORD: postgres
-      DB_HOST: postgres
+      DB_NAME: ticketing_db_d45q
+      DB_USER: ticketinguser
+      DB_PASSWORD: pyw9wBAVv723L8XPEjwhuyrAD35yc2Ao
+      DB_HOST: dpg-d591o8h5pdvs73a4ieag-a.oregon-postgres.render.com
       DB_PORT: '5432'
-      REDIS_HOST: redis
-      REDIS_PORT: '6379'
+      REDIS_URL: redis://redis:6379
+      AUTH_VALIDATE_URL: http://gateway:8000/api/v1/token/validate/
     depends_on:
       - postgres
       - redis
+    restart: unless-stopped
 
   payment:
     image: python:3.12-slim
@@ -105,12 +105,13 @@ services:
     ports:
       - '8004:8004'
     environment:
-      DB_NAME: payment_db
-      DB_USER: postgres
-      DB_PASSWORD: postgres
-      DB_HOST: postgres
+      DB_NAME: ticketing_db_d45q
+      DB_USER: ticketinguser
+      DB_PASSWORD: pyw9wBAVv723L8XPEjwhuyrAD35yc2Ao
+      DB_HOST: dpg-d591o8h5pdvs73a4ieag-a.oregon-postgres.render.com
       DB_PORT: '5432'
       BOOKING_BASE_URL: http://booking:8001
+      GATEWAY_BASE_URL: http://localhost:8000
       STRIPE_SECRET_KEY: ${STRIPE_SECRET_KEY}
       STRIPE_PUBLISHABLE_KEY: ${STRIPE_PUBLISHABLE_KEY}
       STRIPE_WEBHOOK_SECRET: ${STRIPE_WEBHOOK_SECRET}
