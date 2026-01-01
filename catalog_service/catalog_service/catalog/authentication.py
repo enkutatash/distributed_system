@@ -13,6 +13,7 @@ AUTH_SERVICE_VALIDATE = os.environ.get(
 )
 
 
+
 class GatewayTokenAuthentication(BaseAuthentication):
     def authenticate(self, request):
         auth_header = request.headers.get('Authorization')
@@ -42,3 +43,8 @@ class GatewayTokenAuthentication(BaseAuthentication):
                 self.is_authenticated = True
 
         return (RemoteUser(data.get('user_id'), data.get('is_staff', False)), None)
+    
+    
+    
+    
+

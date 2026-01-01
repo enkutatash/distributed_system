@@ -113,6 +113,7 @@ class EventViewSet(mixins.ListModelMixin,
         from rest_framework import status as drf_status
         return Response(self.get_serializer(event).data, status=drf_status.HTTP_201_CREATED)
 
+
     def update(self, request, *args, **kwargs):
         # Admin-only enforced by get_permissions
         partial = kwargs.pop('partial', True)
@@ -143,6 +144,7 @@ class EventViewSet(mixins.ListModelMixin,
         # Remove from catalog and return a confirmation payload
         self.perform_destroy(event)
         return Response({"status": "deleted", "id": str(event.id)}, status=status.HTTP_200_OK)
+
 
     def retrieve(self, request, *args, **kwargs):
         event = self.get_object()
@@ -175,6 +177,7 @@ class EventViewSet(mixins.ListModelMixin,
                 },
             )
             item.update(counts)
+
 
         from rest_framework.response import Response
         return Response(serialized)

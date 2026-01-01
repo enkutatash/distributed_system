@@ -10,12 +10,14 @@ class Event(models.Model):
     total_tickets = models.PositiveIntegerField()
     tickets_sold = models.PositiveIntegerField(default=0)
     tickets_held = models.PositiveIntegerField(default=0)
+    
     image = models.ImageField(
         upload_to='events/', 
         storage=MediaCloudinaryStorage(),
         null=True, 
         blank=True
     )  # Explicitly uses Cloudinary storage
+    
     metadata = models.JSONField(null=True, blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
 
