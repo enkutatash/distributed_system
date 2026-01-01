@@ -6,6 +6,7 @@ import ticketing_pb2_grpc
 from catalog.models import Event
 from google.protobuf.timestamp_pb2 import Timestamp
 
+
 class CatalogServicer(ticketing_pb2_grpc.CatalogServiceServicer):
     def GetEvent(self, request, context):
         try:
@@ -29,6 +30,7 @@ class CatalogServicer(ticketing_pb2_grpc.CatalogServiceServicer):
             )
         except Event.DoesNotExist:
             context.abort(grpc.StatusCode.NOT_FOUND, "Event not found")
+
 
 def serve_grpc():
     server = grpc.server(futures.ThreadPoolExecutor(max_workers=10))
